@@ -2,6 +2,16 @@
 
 A Flutter app for daily evening check-ins with customizable tracking fields. Track your mood, energy, symptoms, and more with personalized metrics that sync to Google Drive.
 
+## App Icon
+
+The app icon source is `icon.png` in the project root. To regenerate iOS icons after modifying it:
+
+```bash
+dart run flutter_launcher_icons
+```
+
+This uses the `flutter_launcher_icons` package configured in `pubspec.yaml`.
+
 ## Features
 
 - **Customizable Fields**: Create and manage your own tracking fields (sliders, toggles, text)
