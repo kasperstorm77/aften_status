@@ -48,7 +48,9 @@ class AddEntryController extends ChangeNotifier {
         entries.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         final index = int.tryParse(entryId);
         if (index != null && index < entries.length) {
-          _currentStatus = entries[index];
+          // Create a copy of the entry to avoid Hive key conflicts
+          final original = entries[index];
+          _currentStatus = EveningStatus.fromMap(original.toMap());
         }
       } else {
         // Create new entry

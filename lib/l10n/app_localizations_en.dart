@@ -345,4 +345,76 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get restoreBackupConfirmation =>
       'This will replace your current data with the selected backup. Continue?';
+
+  @override
+  String get dataManagement => 'Data Management';
+
+  @override
+  String get signOutGoogle => 'Sign Out Google';
+
+  @override
+  String get syncWithGoogleDrive => 'Sync with Google Drive';
+
+  @override
+  String get exportToJson => 'Export to JSON';
+
+  @override
+  String get importFromJson => 'Import from JSON';
+
+  @override
+  String get selectRestorePoint => 'Select Restore Point';
+
+  @override
+  String get backupsAvailable => 'backups available';
+
+  @override
+  String get restoreFromBackup => 'Restore from Backup';
+
+  @override
+  String get uploadToGoogleDriveManual => 'Upload to Google Drive (Manual)';
+
+  @override
+  String get deleteAllEntries => 'Delete All Entries';
+
+  @override
+  String get deleteAllConfirmation =>
+      'Are you sure you want to delete all entries? This action cannot be undone.';
+
+  @override
+  String get allEntriesDeleted => 'All entries deleted';
+
+  @override
+  String get importedEntries => 'Imported entries';
+
+  @override
+  String get uploadSuccess => 'Upload successful';
+
+  @override
+  String get restoreSuccess => 'Restore successful';
+
+  @override
+  String get syncStatusInSync => 'In sync';
+
+  @override
+  String get syncStatusLocalNewer => 'Local changes pending upload';
+
+  @override
+  String get syncStatusRemoteNewer => 'Remote changes available';
+
+  @override
+  String get syncStatusLocalOnly => 'Not yet synced to cloud';
+
+  @override
+  String get syncStatusRemoteOnly => 'Cloud data available';
+
+  @override
+  String get syncStatusNoData => 'No data';
+
+  @override
+  String lastSynced(String date) {
+    return 'Last synced: $date';
+  }
+
+  @override
+  String get backupRetentionInfo => 'Backups: Today (all) + 7 days (1 per day)';
 }

@@ -346,4 +346,77 @@ class AppLocalizationsDa extends AppLocalizations {
   @override
   String get restoreBackupConfirmation =>
       'Dette vil erstatte dine nuværende data med den valgte backup. Fortsæt?';
+
+  @override
+  String get dataManagement => 'Datahåndtering';
+
+  @override
+  String get signOutGoogle => 'Log ud Google';
+
+  @override
+  String get syncWithGoogleDrive => 'Synkroniser med Google Drive';
+
+  @override
+  String get exportToJson => 'Eksporter til JSON';
+
+  @override
+  String get importFromJson => 'Importer fra JSON';
+
+  @override
+  String get selectRestorePoint => 'Vælg Gendannelsespunkt';
+
+  @override
+  String get backupsAvailable => 'backups tilgængelige';
+
+  @override
+  String get restoreFromBackup => 'Gendan fra Backup';
+
+  @override
+  String get uploadToGoogleDriveManual => 'Upload til Google Drive (Manuel)';
+
+  @override
+  String get deleteAllEntries => 'Slet Alle Indtastninger';
+
+  @override
+  String get deleteAllConfirmation =>
+      'Er du sikker på, at du vil slette alle indtastninger? Denne handling kan ikke fortrydes.';
+
+  @override
+  String get allEntriesDeleted => 'Alle indtastninger slettet';
+
+  @override
+  String get importedEntries => 'Importerede indtastninger';
+
+  @override
+  String get uploadSuccess => 'Upload succesfuldt';
+
+  @override
+  String get restoreSuccess => 'Gendannelse succesfuldt';
+
+  @override
+  String get syncStatusInSync => 'Synkroniseret';
+
+  @override
+  String get syncStatusLocalNewer => 'Lokale ændringer afventer upload';
+
+  @override
+  String get syncStatusRemoteNewer => 'Fjernændringer tilgængelige';
+
+  @override
+  String get syncStatusLocalOnly => 'Endnu ikke synkroniseret til sky';
+
+  @override
+  String get syncStatusRemoteOnly => 'Skydata tilgængelig';
+
+  @override
+  String get syncStatusNoData => 'Ingen data';
+
+  @override
+  String lastSynced(String date) {
+    return 'Sidst synkroniseret: $date';
+  }
+
+  @override
+  String get backupRetentionInfo =>
+      'Backups: I dag (alle) + 7 dage (1 pr. dag)';
 }

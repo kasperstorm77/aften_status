@@ -98,12 +98,22 @@ class EveningStatusDriveService {
   }
 
   /// Sign in to Google
-  Future<bool> signIn() {
+  /// After successful sign-in, sync is automatically enabled
+  Future<bool> signIn() async {
+    bool success;
     if (PlatformHelper.isDesktop) {
-      return _windowsDriveService!.driveService.signIn();
+      success = await _windowsDriveService!.driveService.signIn();
     } else {
-      return _mobileDriveService!.signIn();
+      success = await _mobileDriveService!.signIn();
     }
+    
+    // Auto-enable sync after successful sign-in
+    if (success) {
+      await setSyncEnabled(true);
+      if (kDebugMode) print('EveningStatusDriveService: Auto-enabled sync after sign-in');
+    }
+    
+    return success;
   }
 
   /// Sign out from Google  
@@ -268,10 +278,135 @@ class EveningStatusDriveService {
     }
   }
 
+  /// Get the last modified timestamp from local storage
+  Future<DateTime?> getLocalLastModified() async {
+    try {
+      final settingsBox = await _getSettingsBox();
+      final lastSync = settingsBox.get('lastLocalModified') as String?;
+      if (lastSync != null) {
+        return DateTime.parse(lastSync);
+      }
+    } catch (e) {
+      if (kDebugMode) print('EveningStatusDriveService: Error getting local last modified: $e');
+    }
+    return null;
+  }
+
+  /// Get the last modified timestamp from remote (most recent backup)
+  Future<DateTime?> getRemoteLastModified() async {
+    try {
+      final backups = await listAvailableBackups();
+      if (backups.isNotEmpty) {
+        // Backups are sorted newest first
+        return backups.first['date'] as DateTime?;
+      }
+    } catch (e) {
+      if (kDebugMode) print('EveningStatusDriveService: Error getting remote last modified: $e');
+    }
+    return null;
+  }
+
+  /// Check if local data is newer than remote
+  Future<bool> isLocalNewer() async {
+    final local = await getLocalLastModified();
+    final remote = await getRemoteLastModified();
+    
+    if (local == null) return false; // No local data, not newer
+    if (remote == null) return true;  // No remote data, local is newer
+    
+    return local.isAfter(remote);
+  }
+
+  /// Check if remote data is newer than local
+  Future<bool> isRemoteNewer() async {
+    final local = await getLocalLastModified();
+    final remote = await getRemoteLastModified();
+    
+    if (remote == null) return false; // No remote data, not newer
+    if (local == null) return true;   // No local data, remote is newer
+    
+    return remote.isAfter(local);
+  }
+
+  /// Get sync status information
+  Future<Map<String, dynamic>> getSyncStatus() async {
+    final local = await getLocalLastModified();
+    final remote = await getRemoteLastModified();
+    
+    String status;
+    if (local == null && remote == null) {
+      status = 'no_data';
+    } else if (local == null) {
+      status = 'remote_only';
+    } else if (remote == null) {
+      status = 'local_only';
+    } else if (local.isAfter(remote)) {
+      status = 'local_newer';
+    } else if (remote.isAfter(local)) {
+      status = 'remote_newer';
+    } else {
+      status = 'in_sync';
+    }
+    
+    return {
+      'status': status,
+      'localLastModified': local?.toIso8601String(),
+      'remoteLastModified': remote?.toIso8601String(),
+      'isLocalNewer': local != null && (remote == null || local.isAfter(remote)),
+      'isRemoteNewer': remote != null && (local == null || remote.isAfter(local)),
+    };
+  }
+
+  /// Smart sync - only upload if local is newer or equal
+  /// Returns true if upload happened, false if skipped
+  Future<bool> smartUploadFromBox(Box<EveningStatus> box, {bool notifyUI = false, bool forceUpload = false}) async {
+    if (!syncEnabled || !isAuthenticated) {
+      if (kDebugMode) print('EveningStatusDriveService: Smart sync skipped - not enabled or not authenticated');
+      return false;
+    }
+
+    if (!forceUpload) {
+      final isRemoteNewer = await this.isRemoteNewer();
+      if (isRemoteNewer) {
+        if (kDebugMode) print('EveningStatusDriveService: Smart sync skipped - remote is newer. Use forceUpload to override.');
+        return false;
+      }
+    }
+
+    await uploadFromBox(box, notifyUI: notifyUI);
+    return true;
+  }
+
+  /// Smart download - only download if remote is newer
+  /// Returns the content if downloaded, null if skipped
+  Future<String?> smartDownloadContent({bool forceDownload = false}) async {
+    if (!syncEnabled || !isAuthenticated) {
+      if (kDebugMode) print('EveningStatusDriveService: Smart download skipped - not enabled or not authenticated');
+      return null;
+    }
+
+    if (!forceDownload) {
+      final isLocalNewer = await this.isLocalNewer();
+      if (isLocalNewer) {
+        if (kDebugMode) print('EveningStatusDriveService: Smart download skipped - local is newer. Use forceDownload to override.');
+        return null;
+      }
+    }
+
+    return await downloadContent();
+  }
+
   // Private helpers
+  Future<Box> _getSettingsBox() async {
+    if (!Hive.isBoxOpen('settings')) {
+      return await Hive.openBox('settings');
+    }
+    return Hive.box('settings');
+  }
+
   Future<void> _loadSyncState() async {
     try {
-      final settingsBox = Hive.box('settings');
+      final settingsBox = await _getSettingsBox();
       final enabled = settingsBox.get('syncEnabled', defaultValue: false) as bool;
       if (enabled) {
         await setSyncEnabled(true);
@@ -283,7 +418,7 @@ class EveningStatusDriveService {
 
   Future<void> _saveSyncState(bool enabled) async {
     try {
-      final settingsBox = Hive.box('settings');
+      final settingsBox = await _getSettingsBox();
       await settingsBox.put('syncEnabled', enabled);
     } catch (e) {
       if (kDebugMode) print('EveningStatusDriveService: Error saving sync state: $e');
@@ -292,10 +427,22 @@ class EveningStatusDriveService {
 
   Future<void> _saveLastModified(DateTime timestamp) async {
     try {
-      final settingsBox = Hive.box('settings');
+      final settingsBox = await _getSettingsBox();
       await settingsBox.put('lastDriveSync', timestamp.toIso8601String());
+      // Also update local last modified to track when local data changed
+      await settingsBox.put('lastLocalModified', timestamp.toIso8601String());
     } catch (e) {
       if (kDebugMode) print('EveningStatusDriveService: Error saving last modified: $e');
+    }
+  }
+
+  /// Update local last modified timestamp (called when local data changes)
+  Future<void> updateLocalLastModified() async {
+    try {
+      final settingsBox = await _getSettingsBox();
+      await settingsBox.put('lastLocalModified', DateTime.now().toUtc().toIso8601String());
+    } catch (e) {
+      if (kDebugMode) print('EveningStatusDriveService: Error updating local last modified: $e');
     }
   }
 

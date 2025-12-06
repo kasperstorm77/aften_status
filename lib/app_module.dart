@@ -16,8 +16,12 @@ import 'pages/home_page.dart';
 import 'pages/add_entry_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/google_drive_sync_page.dart';
+import 'pages/field_management_page.dart';
 
 class AppModule extends Module {
+  // Static instance for locale provider to ensure singleton behavior
+  static final LocaleProvider _localeProvider = LocaleProvider();
+  
   @override
   void binds(i) {
     debugPrint('DEBUG: Binding services...');
@@ -25,7 +29,9 @@ class AppModule extends Module {
     // Core services as singletons
     i.addSingleton<LocaleProvider>(() {
       debugPrint('DEBUG: Creating LocaleProvider...');
-      return LocaleProvider();
+      // Initialize asynchronously - will load saved locale
+      _localeProvider.initialize();
+      return _localeProvider;
     });
     
     i.addSingleton<StorageService>(() {
@@ -65,5 +71,6 @@ class AppModule extends Module {
     // Settings routes
     r.child('/settings', child: (context) => const SettingsPage());
     r.child('/settings/google-drive', child: (context) => const GoogleDriveSyncPage());
+    r.child('/settings/fields', child: (context) => const FieldManagementPage());
   }
 }

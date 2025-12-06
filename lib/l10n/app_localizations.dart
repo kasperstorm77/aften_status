@@ -727,6 +727,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This will replace your current data with the selected backup. Continue?'**
   String get restoreBackupConfirmation;
+
+  /// No description provided for @dataManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Data Management'**
+  String get dataManagement;
+
+  /// No description provided for @signOutGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign Out Google'**
+  String get signOutGoogle;
+
+  /// No description provided for @syncWithGoogleDrive.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync with Google Drive'**
+  String get syncWithGoogleDrive;
+
+  /// No description provided for @exportToJson.
+  ///
+  /// In en, this message translates to:
+  /// **'Export to JSON'**
+  String get exportToJson;
+
+  /// No description provided for @importFromJson.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from JSON'**
+  String get importFromJson;
+
+  /// No description provided for @selectRestorePoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Restore Point'**
+  String get selectRestorePoint;
+
+  /// No description provided for @backupsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'backups available'**
+  String get backupsAvailable;
+
+  /// No description provided for @restoreFromBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from Backup'**
+  String get restoreFromBackup;
+
+  /// No description provided for @uploadToGoogleDriveManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload to Google Drive (Manual)'**
+  String get uploadToGoogleDriveManual;
+
+  /// No description provided for @deleteAllEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete All Entries'**
+  String get deleteAllEntries;
+
+  /// No description provided for @deleteAllConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete all entries? This action cannot be undone.'**
+  String get deleteAllConfirmation;
+
+  /// No description provided for @allEntriesDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'All entries deleted'**
+  String get allEntriesDeleted;
+
+  /// No description provided for @importedEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported entries'**
+  String get importedEntries;
+
+  /// No description provided for @uploadSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload successful'**
+  String get uploadSuccess;
+
+  /// No description provided for @restoreSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore successful'**
+  String get restoreSuccess;
+
+  /// No description provided for @syncStatusInSync.
+  ///
+  /// In en, this message translates to:
+  /// **'In sync'**
+  String get syncStatusInSync;
+
+  /// No description provided for @syncStatusLocalNewer.
+  ///
+  /// In en, this message translates to:
+  /// **'Local changes pending upload'**
+  String get syncStatusLocalNewer;
+
+  /// No description provided for @syncStatusRemoteNewer.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote changes available'**
+  String get syncStatusRemoteNewer;
+
+  /// No description provided for @syncStatusLocalOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet synced to cloud'**
+  String get syncStatusLocalOnly;
+
+  /// No description provided for @syncStatusRemoteOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud data available'**
+  String get syncStatusRemoteOnly;
+
+  /// No description provided for @syncStatusNoData.
+  ///
+  /// In en, this message translates to:
+  /// **'No data'**
+  String get syncStatusNoData;
+
+  /// No description provided for @lastSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Last synced: {date}'**
+  String lastSynced(String date);
+
+  /// No description provided for @backupRetentionInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Backups: Today (all) + 7 days (1 per day)'**
+  String get backupRetentionInfo;
 }
 
 class _AppLocalizationsDelegate

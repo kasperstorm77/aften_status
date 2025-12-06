@@ -1,11 +1,17 @@
+import 'dart:async';
+
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter/foundation.dart';
 import '../models/evening_status.dart';
 import '../models/field_definition.dart';
+import 'evening_status_drive_service.dart';
 
 class StorageService {
   static const String _eveningStatusBoxName = 'evening_status';
   Box<EveningStatus>? _eveningStatusBox;
+  
+  // Reference to drive service for auto-sync
+  EveningStatusDriveService get _driveService => EveningStatusDriveService.instance;
 
   // Ensure the service is initialized and box is opened before doing operations
   Future<void> _ensureInitialized() async {
@@ -86,6 +92,7 @@ class StorageService {
     debugPrint('StorageService: Saving new entry with timestamp ${status.timestamp}');
     await _eveningStatusBox!.add(status);
     debugPrint('StorageService: Entry saved successfully');
+    unawaited(_triggerAutoSync()); // Fire-and-forget for responsive UI
   }
 
   // Update an existing evening status entry
@@ -94,6 +101,7 @@ class StorageService {
     debugPrint('StorageService: Updating entry at index $index');
     await _eveningStatusBox!.putAt(index, status);
     debugPrint('StorageService: Entry updated successfully');
+    unawaited(_triggerAutoSync()); // Fire-and-forget for responsive UI
   }
 
   // Delete an evening status entry
@@ -102,6 +110,7 @@ class StorageService {
     debugPrint('StorageService: Deleting entry at index $index');
     await _eveningStatusBox!.deleteAt(index);
     debugPrint('StorageService: Entry deleted successfully');
+    unawaited(_triggerAutoSync()); // Fire-and-forget for responsive UI
   }
 
   // Get all evening status entries
@@ -130,6 +139,7 @@ class StorageService {
     await _eveningStatusBox!.clear();
     await _eveningStatusBox!.addAll(entries);
     debugPrint('StorageService: All entries replaced successfully');
+    unawaited(_triggerAutoSync()); // Fire-and-forget for responsive UI
   }
 
   // Emergency reset - delete all data
@@ -138,6 +148,31 @@ class StorageService {
     debugPrint('StorageService: EMERGENCY RESET - Deleting all data');
     await _eveningStatusBox!.clear();
     debugPrint('StorageService: All data deleted');
+  }
+
+  // Trigger automatic sync to Google Drive if enabled
+  Future<void> _triggerAutoSync() async {
+    try {
+      // Always update local timestamp when data changes
+      await _driveService.updateLocalLastModified();
+      
+      if (_driveService.syncEnabled && _driveService.isAuthenticated) {
+        debugPrint('StorageService: Auto-syncing to Google Drive...');
+        // Use smart sync which checks timestamps
+        final uploaded = await _driveService.smartUploadFromBox(
+          _eveningStatusBox!,
+          forceUpload: true, // Local changes should always upload
+        );
+        if (uploaded) {
+          debugPrint('StorageService: Auto-sync completed');
+        } else {
+          debugPrint('StorageService: Auto-sync skipped (timestamp check)');
+        }
+      }
+    } catch (e) {
+      debugPrint('StorageService: Auto-sync failed: $e');
+      // Don't rethrow - sync failure shouldn't break local operations
+    }
   }
 
   // Close the box

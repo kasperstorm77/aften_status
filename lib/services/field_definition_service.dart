@@ -1,11 +1,16 @@
 import 'package:hive/hive.dart';
 import 'package:flutter/foundation.dart';
 import '../models/field_definition.dart';
+import '../models/evening_status.dart';
+import 'evening_status_drive_service.dart';
 
 class FieldDefinitionService {
   static const String _boxName = 'fieldDefinitions';
   late Box<FieldDefinition> _box;
   bool _isInitialized = false;
+  
+  // Reference to drive service for auto-sync
+  EveningStatusDriveService get _driveService => EveningStatusDriveService.instance;
   
   static final FieldDefinitionService _instance = FieldDefinitionService._internal();
   factory FieldDefinitionService() => _instance;
@@ -233,9 +238,12 @@ class FieldDefinitionService {
   }
 
   /// Add or update a field definition
-  Future<void> saveField(FieldDefinition field) async {
+  Future<void> saveField(FieldDefinition field, {bool triggerSync = true}) async {
     await initialize();
     await _box.put(field.id, field);
+    if (triggerSync) {
+      await _triggerAutoSync();
+    }
   }
 
   /// Update an existing field definition
@@ -255,6 +263,7 @@ class FieldDefinitionService {
     final field = await getFieldById(id);
     if (field != null && !field.isSystemField) {
       await _box.delete(id);
+      await _triggerAutoSync();
       return true;
     }
     return false;
@@ -358,5 +367,24 @@ class FieldDefinitionService {
     await initialize();
     await _box.clear();
     await _initializeDefaultFields();
+    await _triggerAutoSync();
+  }
+
+  /// Trigger automatic sync to Google Drive if enabled
+  Future<void> _triggerAutoSync() async {
+    try {
+      if (_driveService.syncEnabled && _driveService.isAuthenticated) {
+        debugPrint('FieldDefinitionService: Auto-syncing to Google Drive...');
+        // Get the evening status box and upload (which includes field definitions)
+        if (Hive.isBoxOpen('evening_status')) {
+          final box = Hive.box<EveningStatus>('evening_status');
+          await _driveService.uploadFromBox(box);
+          debugPrint('FieldDefinitionService: Auto-sync completed');
+        }
+      }
+    } catch (e) {
+      debugPrint('FieldDefinitionService: Auto-sync failed: $e');
+      // Don't rethrow - sync failure shouldn't break local operations
+    }
   }
 }

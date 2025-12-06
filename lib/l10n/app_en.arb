@@ -1,4 +1,4 @@
-{
+ {
   "@@locale": "en",
   "appTitle": "Evening Status",
   "@appTitle": {
@@ -228,5 +228,34 @@
   "availableBackups": "Available Backups",
   "noBackupsAvailable": "No backups available",
   "restoreBackup": "Restore Backup",
-  "restoreBackupConfirmation": "This will replace your current data with the selected backup. Continue?"
+  "restoreBackupConfirmation": "This will replace your current data with the selected backup. Continue?",
+  "dataManagement": "Data Management",
+  "signOutGoogle": "Sign Out Google",
+  "syncWithGoogleDrive": "Sync with Google Drive",
+  "exportToJson": "Export to JSON",
+  "importFromJson": "Import from JSON",
+  "selectRestorePoint": "Select Restore Point",
+  "backupsAvailable": "backups available",
+  "restoreFromBackup": "Restore from Backup",
+  "uploadToGoogleDriveManual": "Upload to Google Drive (Manual)",
+  "deleteAllEntries": "Delete All Entries",
+  "deleteAllConfirmation": "Are you sure you want to delete all entries? This action cannot be undone.",
+  "allEntriesDeleted": "All entries deleted",
+  "importedEntries": "Imported entries",
+  "uploadSuccess": "Upload successful",
+  "restoreSuccess": "Restore successful",
+  "restore": "Restore",
+  "syncStatusInSync": "In sync",
+  "syncStatusLocalNewer": "Local changes pending upload",
+  "syncStatusRemoteNewer": "Remote changes available",
+  "syncStatusLocalOnly": "Not yet synced to cloud",
+  "syncStatusRemoteOnly": "Cloud data available",
+  "syncStatusNoData": "No data",
+  "lastSynced": "Last synced: {date}",
+  "@lastSynced": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "backupRetentionInfo": "Backups: Today (all) + 7 days (1 per day)"
 }

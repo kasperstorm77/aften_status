@@ -6,30 +6,31 @@ class LocaleProvider extends ChangeNotifier {
   Locale _locale = const Locale('en');
   bool _initialized = false;
   
-  Locale get locale {
-    // Lazy initialization on first access
-    if (!_initialized) {
-      _loadSavedLocale();
-    }
-    return _locale;
-  }
+  Locale get locale => _locale;
   
-  /// Load saved locale from Hive (called automatically on first access)
-  void _loadSavedLocale() {
+  /// Initialize and load saved locale from Hive
+  /// Should be called after Hive settings box is opened
+  Future<void> initialize() async {
+    if (_initialized) return;
+    
     _initialized = true;
     try {
-      if (Hive.isBoxOpen('settings')) {
-        final settingsBox = Hive.box('settings');
-        final savedLanguageCode = settingsBox.get('language') as String?;
-        if (savedLanguageCode != null) {
-          _locale = Locale(savedLanguageCode);
-          // Schedule a notification after the current frame to update UI
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            notifyListeners();
-          });
-        }
+      // Ensure settings box is open
+      if (!Hive.isBoxOpen('settings')) {
+        await Hive.openBox('settings');
+      }
+      
+      final settingsBox = Hive.box('settings');
+      final savedLanguageCode = settingsBox.get('language') as String?;
+      
+      if (savedLanguageCode != null) {
+        _locale = Locale(savedLanguageCode);
+        debugPrint('LocaleProvider: Loaded saved locale: $savedLanguageCode');
+      } else {
+        debugPrint('LocaleProvider: No saved locale, using default: en');
       }
     } catch (e) {
+      debugPrint('LocaleProvider: Error loading locale: $e');
       // If loading fails, use default locale
       _locale = const Locale('en');
     }
@@ -43,11 +44,14 @@ class LocaleProvider extends ChangeNotifier {
       
       // Save to Hive
       try {
-        if (Hive.isBoxOpen('settings')) {
-          final settingsBox = Hive.box('settings');
-          await settingsBox.put('language', locale.languageCode);
+        if (!Hive.isBoxOpen('settings')) {
+          await Hive.openBox('settings');
         }
+        final settingsBox = Hive.box('settings');
+        await settingsBox.put('language', locale.languageCode);
+        debugPrint('LocaleProvider: Saved locale: ${locale.languageCode}');
       } catch (e) {
+        debugPrint('LocaleProvider: Error saving locale: $e');
         // Persist failed, but locale change still applied in memory
       }
     }
