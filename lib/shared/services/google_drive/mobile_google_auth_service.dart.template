@@ -1,0 +1,136 @@
+// --------------------------------------------------------------------------
+// Mobile Google Authentication Service - Android/iOS Only
+// --------------------------------------------------------------------------
+// 
+// INSTRUCTIONS:
+// 1. Copy this file to: mobile_google_auth_service.dart (same directory)
+// 2. Replace YOUR_IOS_CLIENT_ID with your actual iOS OAuth client ID
+// 3. mobile_google_auth_service.dart is in .gitignore and won't be committed
+// 
+// Get iOS credentials from: https://console.cloud.google.com/apis/credentials
+// Application type: iOS
+// Bundle ID: dk.stormstyrken.aften-status
+// --------------------------------------------------------------------------
+
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'drive_config.dart';
+import 'drive_crud_client.dart';
+
+/// Handles Google Sign-In authentication for Drive access on mobile platforms
+class MobileGoogleAuthService {
+  final GoogleSignIn _googleSignIn;
+  final GoogleDriveConfig _config;
+  
+  GoogleSignInAccount? _currentUser;
+  String? _accessToken;
+
+  // TODO: Replace with your iOS OAuth client ID from Google Cloud Console
+  // Create an iOS OAuth client at: https://console.cloud.google.com/apis/credentials
+  // Bundle ID should match: dk.stormstyrken.aften-status
+  static const String _iosClientId = 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com';
+
+  MobileGoogleAuthService({required GoogleDriveConfig config})
+      : _config = config,
+        _googleSignIn = Platform.isIOS
+            ? GoogleSignIn(
+                scopes: [config.scope],
+                // iOS requires iOS OAuth client for Drive API access
+                serverClientId: _iosClientId,
+              )
+            : GoogleSignIn(scopes: [config.scope]); // Android uses default (no serverClientId)
+
+  /// Current authenticated user
+  GoogleSignInAccount? get currentUser => _currentUser;
+  
+  /// Current access token
+  String? get accessToken => _accessToken;
+  
+  /// Drive configuration
+  GoogleDriveConfig get config => _config;
+  
+  /// Check if user is signed in
+  bool get isSignedIn => _currentUser != null && _accessToken != null;
+
+  /// Stream of authentication state changes
+  Stream<GoogleSignInAccount?> get onAuthStateChanged => 
+      _googleSignIn.onCurrentUserChanged;
+
+  /// Initialize and attempt silent sign-in
+  Future<bool> initializeAuth() async {
+    try {
+      final account = await _googleSignIn.signInSilently();
+      if (account != null) {
+        await _updateAuthState(account);
+        return true;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Silent sign-in failed: $e');
+    }
+    return false;
+  }
+
+  /// Interactive sign-in
+  Future<bool> signIn() async {
+    try {
+      final account = await _googleSignIn.signIn();
+      if (account != null) {
+        await _updateAuthState(account);
+        return true;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Interactive sign-in failed: $e');
+    }
+    return false;
+  }
+
+  /// Sign out
+  Future<void> signOut() async {
+    await _googleSignIn.signOut();
+    _currentUser = null;
+    _accessToken = null;
+  }
+
+  /// Refresh the access token
+  Future<String?> refreshToken() async {
+    try {
+      final account = _googleSignIn.currentUser;
+      if (account == null) return null;
+      
+      final auth = await account.authentication;
+      _accessToken = auth.accessToken;
+      return _accessToken;
+    } catch (e) {
+      if (kDebugMode) print('Token refresh failed: $e');
+      return null;
+    }
+  }
+
+  /// Create a Drive client with current credentials
+  GoogleDriveCrudClient? createDriveClient() {
+    if (_accessToken == null) return null;
+    return GoogleDriveCrudClient(
+      accessToken: _accessToken!,
+      config: _config,
+    );
+  }
+
+  Future<void> _updateAuthState(GoogleSignInAccount account) async {
+    _currentUser = account;
+    final auth = await account.authentication;
+    _accessToken = auth.accessToken;
+  }
+
+  /// Listen for authentication state changes
+  void listenToAuthChanges(void Function(GoogleSignInAccount?) callback) {
+    _googleSignIn.onCurrentUserChanged.listen(callback);
+  }
+
+  /// Disconnect (revoke access)
+  Future<void> disconnect() async {
+    await _googleSignIn.disconnect();
+    _currentUser = null;
+    _accessToken = null;
+  }
+}

@@ -1,0 +1,232 @@
+{
+  "@@locale": "en",
+  "appTitle": "Evening Status",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+  "newEveningStatus": "New Evening Status",
+  "@newEveningStatus": {
+    "description": "Title for creating a new evening entry"
+  },
+  "editEntry": "Edit Entry",
+  "@editEntry": {
+    "description": "Title for editing an existing entry"
+  },
+  "settings": "Settings",
+  "@settings": {
+    "description": "Settings page title"
+  },
+  "save": "Save",
+  "@save": {
+    "description": "Save button text"
+  },
+  "update": "Update",
+  "@update": {
+    "description": "Update button text"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button text"
+  },
+  "delete": "Delete",
+  "@delete": {
+    "description": "Delete button text"
+  },
+  "reset": "Reset",
+  "@reset": {
+    "description": "Reset button text"
+  },
+  "exportToCsv": "Export to CSV",
+  "@exportToCsv": {
+    "description": "Export data to CSV button text"
+  },
+  "noEntriesYet": "No evening entries yet",
+  "@noEntriesYet": {
+    "description": "Message when no entries exist"
+  },
+  "addFirstReflection": "Add your first evening reflection",
+  "@addFirstReflection": {
+    "description": "Subtitle message when no entries exist"
+  },
+  "deleteEntryTitle": "Delete Entry",
+  "@deleteEntryTitle": {
+    "description": "Title of delete confirmation dialog"
+  },
+  "deleteEntryConfirmation": "Are you sure you want to delete this evening entry?",
+  "@deleteEntryConfirmation": {
+    "description": "Delete confirmation dialog message"
+  },
+  "averageScore": "Avg: {score}",
+  "@averageScore": {
+    "description": "Average score display",
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "dataExport": "Data Export",
+  "@dataExport": {
+    "description": "Data export section title"
+  },
+  "dataExportDescription": "Export your evening status data to CSV format for analysis or backup",
+  "@dataExportDescription": {
+    "description": "Data export section description"
+  },
+  "resetSettingsTitle": "Reset Settings",
+  "@resetSettingsTitle": {
+    "description": "Reset settings dialog title"
+  },
+  "resetSettingsConfirmation": "Are you sure you want to reset all settings to their default values? This action cannot be undone.",
+  "@resetSettingsConfirmation": {
+    "description": "Reset settings confirmation message"
+  },
+  "customLabel": "Custom Label",
+  "@customLabel": {
+    "description": "Custom label field hint"
+  },
+  "enterCustomLabel": "Enter custom label",
+  "@enterCustomLabel": {
+    "description": "Custom label field placeholder"
+  },
+  "unitOptional": "Unit (optional)",
+  "@unitOptional": {
+    "description": "Unit field label"
+  },
+  "unitPlaceholder": "e.g., points, %",
+  "@unitPlaceholder": {
+    "description": "Unit field placeholder"
+  },
+  "settingsSaved": "Settings saved successfully",
+  "@settingsSaved": {
+    "description": "Settings saved success message"
+  },
+  "settingsReset": "Settings reset to defaults",
+  "@settingsReset": {
+    "description": "Settings reset success message"
+  },
+  "exportFailed": "Export failed: {error}",
+  "@exportFailed": {
+    "description": "Export error message",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "saveSettings": "Save Settings",
+  "@saveSettings": {
+    "description": "Save settings button text"
+  },
+  "language": "Language",
+  "@language": {
+    "description": "Language selection label"
+  },
+  "soundSensibility": "Sound Sensibility",
+  "sleepQuality": "Sleep Quality", 
+  "irritability": "Irritability",
+  "socialWithdrawal": "Social Withdrawal",
+  "emotionalWithdrawal": "Emotional Withdrawal",
+  "skinPicking": "Skin Picking",
+  "tiredness": "Tiredness",
+  "forgetfulnessOnConversations": "Forgetfulness on Conversations",
+  "lackOfFocus": "Lack of Focus",
+  "lowToleranceTowardPeople": "Low Tolerance Toward People",
+  "easyToTears": "Easy to Tears", 
+  "interrupting": "Interrupting",
+  "misunderstanding": "Misunderstanding",
+  "selfBlaming": "Self-blaming",
+  "sound": "Sound",
+  "sleep": "Sleep",
+  "irritab": "Irritab.",
+  "social": "Social",
+  "emotion": "Emotion",
+  "skin": "Skin",
+  "tired": "Tired",
+  "forget": "Forget", 
+  "focus": "Focus",
+  "toleran": "Toleran.",
+  "tears": "Tears",
+  "interr": "Interr.",
+  "misund": "Misund.",
+  "blame": "Blame",
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "retry": "Retry",
+  "edit": "Edit",
+  "requiredField": "Required Field",
+  "usersMustFillThisField": "Users must fill this field",
+  "active": "Active",
+  "showFieldInForms": "Show field in forms",
+  "multipleChoiceFieldsMustHaveAtLeastOneOption": "Multiple choice fields must have at least one option",
+  "errorSavingField": "Error saving field: {error}",
+  "@errorSavingField": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "googleDriveSync": "Google Drive Sync",
+  "signInWithGoogle": "Sign in with Google",
+  "uploadToGoogleDrive": "Upload to Google Drive",
+  "restoreFromGoogleDrive": "Restore from Google Drive",
+  "signOut": "Sign out",
+  "restoreFromGoogleDriveQuestion": "Restore from Google Drive?",
+  "thisWillReplaceYourCurrentData": "This will replace your current data with the backup from Google Drive. This action cannot be undone.",
+  "restore": "Restore",
+  "restoredEntriesFromGoogleDrive": "Restored {count} entries from Google Drive",
+  "@restoredEntriesFromGoogleDrive": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "fieldManagement": "Field Management",
+  "manageFields": "Manage Fields",
+  "addCustomField": "Add Custom Field",
+  "deleteField": "Delete Field",
+  "areYouSureYouWantToDeleteThisField": "Are you sure you want to delete this field? This will remove it from all entries.",
+  "fieldCreatedSuccessfully": "Field created successfully",
+  "errorCreatingField": "Error creating field: {error}",
+  "@errorCreatingField": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "fieldUpdatedSuccessfully": "Field updated successfully",
+  "errorUpdatingField": "Error updating field: {error}",
+  "@errorUpdatingField": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "fieldDeletedSuccessfully": "Field deleted successfully",
+  "errorDeletingField": "Error deleting field: {error}",
+  "@errorDeletingField": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "configureGoogleDrive": "Configure Google Drive",
+  "appInitializationFailed": "App initialization failed",
+  "noDataToExport": "No data to export",
+  "exportFailed2": "Export failed: {error}",
+  "@exportFailed2": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "syncYourData": "Sync your data with Google Drive",
+  "customizeFields": "Customize your tracking fields",
+  "resetSettings": "Reset Settings",
+  "resetToDefaults": "Reset to Defaults",
+  "signedIn": "Signed In",
+  "signedOut": "Signed Out",
+  "syncOptions": "Sync Options",
+  "autoSync": "Auto Sync",
+  "autoSyncDescription": "Automatically sync when changes are made",
+  "uploadNow": "Upload Now",
+  "downloadNow": "Download Now",
+  "availableBackups": "Available Backups",
+  "noBackupsAvailable": "No backups available",
+  "restoreBackup": "Restore Backup",
+  "restoreBackupConfirmation": "This will replace your current data with the selected backup. Continue?"
+}

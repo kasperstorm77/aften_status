@@ -1,0 +1,104 @@
+# Aften Status - Git Ignore
+# ===========================
+
+# =====================
+# SECRETS (NEVER COMMIT)
+# =====================
+
+# Local setup with actual secrets
+docs/local_setup_aften_ritual.md
+
+# OAuth configuration files with real credentials
+lib/shared/services/google_drive/desktop_oauth_config.dart
+lib/shared/services/google_drive/mobile_google_auth_service.dart
+
+# iOS Info.plist (contains OAuth client ID)
+ios/Runner/Info.plist
+
+# Google Services files (Android)
+**/google-services.json
+**/google-services_debug.json
+**/google-services_release.json
+
+# Keystores
+*.keystore
+*.jks
+
+# =====================
+# FLUTTER / DART
+# =====================
+
+# Dart generated files
+.dart_tool/
+.packages
+build/
+*.g.dart
+
+# Flutter
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+
+# Generated localization (regenerate with flutter gen-l10n)
+# Keeping these as they are generated from .arb files
+# lib/l10n/app_localizations.dart
+# lib/l10n/app_localizations_*.dart
+
+# =====================
+# PLATFORM FOLDERS
+# =====================
+
+# iOS (regenerate with: flutter create --platforms=ios .)
+ios/
+
+# Android (regenerate with: flutter create --platforms=android .)
+android/
+
+# macOS (regenerate with: flutter create --platforms=macos .)
+macos/
+
+# Windows (regenerate with: flutter create --platforms=windows .)
+windows/
+
+# Linux (regenerate with: flutter create --platforms=linux .)
+linux/
+
+# Web (regenerate with: flutter create --platforms=web .)
+web/
+
+# =====================
+# IDE / EDITOR
+# =====================
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code
+.vscode/
+
+# =====================
+# macOS
+# =====================
+.DS_Store
+*.swp
+*.lock
+*~
+
+# =====================
+# MISC
+# =====================
+
+# Dependency lock (regenerate with flutter pub get)
+pubspec.lock
+
+# Test folder
+test/
+
+# Coverage
+coverage/
+
+# Logs
+*.log
