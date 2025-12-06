@@ -135,16 +135,22 @@ class _FieldManagementPageState extends State<FieldManagementPage> {
     return Card(
       key: ValueKey(field.id),
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: ReorderableDragStartListener(
-          index: index,
-          child: Icon(
-            Icons.drag_handle,
-            color: theme.colorScheme.outline,
-          ),
-        ),
-        title: Row(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Row(
           children: [
+            // Drag handle
+            ReorderableDragStartListener(
+              index: index,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Icon(
+                  Icons.drag_handle,
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ),
+            // Field type icon
             Icon(
               _getFieldTypeIcon(field.type),
               size: 20,
@@ -153,55 +159,71 @@ class _FieldManagementPageState extends State<FieldManagementPage> {
                   : theme.colorScheme.onSurface.withValues(alpha: 0.4),
             ),
             const SizedBox(width: 12),
+            // Field name - takes remaining space
             Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: field.isActive 
-                      ? null 
-                      : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: field.isActive 
+                          ? null 
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (_hasOtherTranslations(field, locale))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        _getOtherTranslationsText(field, locale),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
               ),
             ),
-          ],
-        ),
-        subtitle: _buildFieldSubtitle(field, locale),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Active toggle
+            // Actions row
             Switch(
               value: field.isActive,
               onChanged: (value) => _toggleField(field, value),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            // Edit button
             IconButton(
-              icon: const Icon(Icons.edit_outlined),
+              icon: const Icon(Icons.edit_outlined, size: 20),
               onPressed: () => _showFieldDialog(context, field: field),
               tooltip: l10n.edit,
+              visualDensity: VisualDensity.compact,
             ),
-            // Delete button
             IconButton(
-              icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+              icon: Icon(Icons.delete_outline, size: 20, color: theme.colorScheme.error),
               onPressed: () => _confirmDeleteField(context, field, l10n),
               tooltip: l10n.delete,
+              visualDensity: VisualDensity.compact,
             ),
+            const SizedBox(width: 4),
           ],
         ),
       ),
     );
   }
 
-  Widget? _buildFieldSubtitle(FieldDefinition field, String locale) {
+  bool _hasOtherTranslations(FieldDefinition field, String locale) {
     final availableLocales = field.availableLocales;
-    if (availableLocales.length <= 1) return null;
-    
-    // Show other available translations
-    final otherLocales = availableLocales.where((l) => l != locale).toList();
-    if (otherLocales.isEmpty) return null;
-    
-    final otherNames = otherLocales.map((l) => '${l.toUpperCase()}: ${field.localizedNames[l]}').join(', ');
-    return Text(otherNames, style: const TextStyle(fontSize: 12));
+    return availableLocales.length > 1 && 
+           availableLocales.any((l) => l != locale);
+  }
+
+  String _getOtherTranslationsText(FieldDefinition field, String locale) {
+    final otherLocales = field.availableLocales.where((l) => l != locale).toList();
+    return otherLocales
+        .map((l) => '${l.toUpperCase()}: ${field.localizedNames[l]}')
+        .join(', ');
   }
 
   IconData _getFieldTypeIcon(FieldType type) {

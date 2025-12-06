@@ -1,16 +1,88 @@
-# aften_status
+# Aften Status (Evening Status)
 
-A new Flutter project.
+A Flutter app for daily evening check-ins with customizable tracking fields. Track your mood, energy, symptoms, and more with personalized metrics that sync to Google Drive.
+
+## Features
+
+- **Customizable Fields**: Create and manage your own tracking fields (sliders, toggles, text)
+- **Daily Check-ins**: Quick evening status entries with intuitive UI
+- **Visual Analytics**: Interactive line chart showing trends over time (up to 20 entries)
+- **Google Drive Sync**: Automatic backup and sync across devices
+- **Multi-language**: English and Danish localization
+- **Field Legend**: Toggle visibility of individual fields in the graph view
+- **Dark/Light Theme**: Follows system theme preferences
+
+## Screenshots
+
+The app includes:
+- Home page with entry list and score bar charts
+- Add/Edit entry page with dynamic field widgets
+- Graph page with interactive line charts (landscape mode)
+- Settings page for field management and data sync
+
+## Tech Stack
+
+- **Framework**: Flutter
+- **State Management**: ChangeNotifier-based controllers
+- **DI & Routing**: flutter_modular
+- **Local Storage**: Hive with type adapters
+- **Cloud Sync**: Google Drive API (googleapis, google_sign_in)
+- **Charts**: fl_chart
+- **Localization**: Flutter ARB-based l10n
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+### Prerequisites
 
-A few resources to get you started if this is your first Flutter project:
+- Flutter SDK (3.0+)
+- iOS 12.0+ / Android 5.0+
+- Google Cloud project with Drive API enabled (for sync features)
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### Installation
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+1. Clone the repository
+2. Copy secret template files and add your credentials:
+   - `lib/shared/services/google_drive/desktop_oauth_config.dart.template`
+   - `lib/shared/services/google_drive/mobile_google_auth_service.dart.template`
+3. Run:
+   ```bash
+   flutter pub get
+   flutter gen-l10n
+   flutter run
+   ```
+
+### Building
+
+```bash
+# iOS (debug, no signing)
+flutter build ios --no-codesign --debug
+
+# Regenerate Hive adapters
+dart run build_runner build --delete-conflicting-outputs
+
+# Regenerate localizations
+flutter gen-l10n
+```
+
+## Project Structure
+
+```
+lib/
+├── main.dart              # App entry point
+├── app_module.dart        # Flutter Modular bindings and routes
+├── models/                # Data models with Hive adapters
+├── services/              # Business logic and controllers
+├── pages/                 # UI pages and widgets
+├── shared/                # Shared infrastructure (Google Drive, utils)
+└── l10n/                  # Localization files (EN, DA)
+```
+
+## Debug Features
+
+In debug mode, additional buttons are available in Settings:
+- **Generate 20 Sample Entries**: Create random test data
+- **Clear All Backups**: Remove all Google Drive backup files
+
+## License
+
+This project is private and not licensed for public use.

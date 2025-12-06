@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
@@ -7,6 +8,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../services/evening_status_drive_service.dart';
+import '../services/field_definition_service.dart';
 import '../services/storage_service.dart';
 import '../services/localization_service.dart';
 import '../models/evening_status.dart';
@@ -97,6 +99,10 @@ class _SettingsPageState extends State<SettingsPage> {
                         _buildExportButton(context, l10n),
                         const SizedBox(height: 12),
                         
+                        // Export to CSV
+                        _buildExportCsvButton(context, l10n),
+                        const SizedBox(height: 12),
+                        
                         // Import from JSON
                         _buildImportButton(context, l10n),
                         const SizedBox(height: 24),
@@ -116,6 +122,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         // Debug: Clear All Backups (only visible in debug mode)
                         if (kDebugMode) ...[                          
                           _buildClearBackupsButton(context, l10n),
+                          const SizedBox(height: 12),
+                          _buildGenerateSampleDataButton(context, l10n),
                           const SizedBox(height: 24),
                         ],
                       ],
@@ -183,6 +191,18 @@ class _SettingsPageState extends State<SettingsPage> {
         side: BorderSide(color: Theme.of(context).colorScheme.primary),
       ),
       child: Text(l10n.exportToJson),
+    );
+  }
+
+  Widget _buildExportCsvButton(BuildContext context, AppLocalizations l10n) {
+    return OutlinedButton.icon(
+      onPressed: _exportToCsv,
+      icon: const Icon(Icons.table_chart_outlined),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        side: BorderSide(color: Theme.of(context).colorScheme.primary),
+      ),
+      label: Text(l10n.exportToCsv),
     );
   }
 
@@ -333,6 +353,19 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _buildGenerateSampleDataButton(BuildContext context, AppLocalizations l10n) {
+    return ElevatedButton.icon(
+      onPressed: _generateSampleData,
+      icon: const Icon(Icons.auto_fix_high),
+      label: const Text('[DEBUG] Generate 20 Sample Entries'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+    );
+  }
+
   // === Actions ===
 
   Future<void> _clearAllBackups() async {
@@ -373,6 +406,65 @@ class _SettingsPageState extends State<SettingsPage> {
       await _loadBackups();
     } catch (e) {
       _showError('Failed to clear backups: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _generateSampleData() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('[DEBUG] Generate Sample Data'),
+        content: const Text('This will create 20 random entries spread over the last 20 days. Continue?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.teal),
+            child: const Text('Generate'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final fieldService = Modular.get<FieldDefinitionService>();
+      final allFields = await fieldService.getActiveFields();
+      final random = Random();
+      
+      // Generate 20 entries, one per day for the last 20 days
+      for (int i = 19; i >= 0; i--) {
+        final entryDate = DateTime.now().subtract(Duration(days: i));
+        final fieldValues = <String, dynamic>{};
+        
+        // Generate random values for each active field
+        for (final field in allFields) {
+          // Generate value between 1 and 10 with some variance
+          final baseValue = 3 + random.nextDouble() * 5; // 3-8 base range
+          final variance = random.nextDouble() * 2 - 1; // -1 to +1
+          final value = (baseValue + variance).clamp(1.0, 10.0);
+          fieldValues[field.id] = double.parse(value.toStringAsFixed(1));
+        }
+        
+        final entry = EveningStatus(
+          timestamp: DateTime(entryDate.year, entryDate.month, entryDate.day, 21, 0),
+          fieldValues: fieldValues,
+          schemaVersion: 2,
+        );
+        
+        await _storageService.saveEveningStatus(entry);
+      }
+      
+      _showMessage('Created 20 sample entries');
+    } catch (e) {
+      _showError('Failed to generate sample data: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -437,6 +529,89 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _exportToCsv() async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      setState(() => _isLoading = true);
+      
+      final entries = await _storageService.getAllEveningStatus();
+      if (entries.isEmpty) {
+        _showMessage(l10n.noDataToExport);
+        return;
+      }
+
+      // Get field definitions for column headers
+      final fieldService = Modular.get<FieldDefinitionService>();
+      final fields = await fieldService.getAllFields();
+      
+      // Get locale for localized field names
+      final locale = Localizations.localeOf(context).languageCode;
+      
+      // Build CSV header
+      final headers = <String>['Date', 'Time'];
+      for (final field in fields) {
+        headers.add(_escapeCsvValue(field.getDisplayLabel(locale)));
+      }
+      
+      final csvLines = <String>[headers.join(',')];
+      
+      // Sort entries by timestamp (oldest first)
+      final sortedEntries = List<EveningStatus>.from(entries)
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      
+      // Build CSV rows
+      for (final entry in sortedEntries) {
+        final row = <String>[
+          _formatDate(entry.timestamp),
+          _formatTime(entry.timestamp),
+        ];
+        
+        for (final field in fields) {
+          final value = entry.fieldValues[field.id];
+          if (value == null) {
+            row.add('');
+          } else if (value is double) {
+            row.add(value.toStringAsFixed(1));
+          } else {
+            row.add(_escapeCsvValue(value.toString()));
+          }
+        }
+        
+        csvLines.add(row.join(','));
+      }
+      
+      final csvContent = csvLines.join('\n');
+      
+      // Save to temp file and share
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/aften_status_export_${DateTime.now().millisecondsSinceEpoch}.csv');
+      await file.writeAsString(csvContent);
+      
+      await Share.shareXFiles([XFile(file.path)], subject: 'Aften Status CSV Export');
+      
+    } catch (e) {
+      _showError('Export failed: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _escapeCsvValue(String value) {
+    // If value contains comma, quote, or newline, wrap in quotes and escape quotes
+    if (value.contains(',') || value.contains('"') || value.contains('\n')) {
+      return '"${value.replaceAll('"', '""')}"';
+    }
+    return value;
+  }
+
+  String _formatDate(DateTime dt) {
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  }
+
+  String _formatTime(DateTime dt) {
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
   Future<void> _uploadToGoogleDrive() async {
     final l10n = AppLocalizations.of(context)!;
     setState(() => _isLoading = true);
@@ -486,6 +661,9 @@ class _SettingsPageState extends State<SettingsPage> {
       
       final box = Hive.box<EveningStatus>('evening_status');
       await _driveService.restoreFromContent(content, box);
+      
+      // Reload field definitions service to pick up restored fields
+      await FieldDefinitionService().reload();
       
       _showMessage(l10n.restoreSuccess);
     } catch (e) {

@@ -889,6 +889,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Backups: Today (all) + 7 days (1 per day)'**
   String get backupRetentionInfo;
+
+  /// No description provided for @showLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get showLess;
+
+  /// No description provided for @showMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Show {count} more'**
+  String showMore(int count);
+
+  /// No description provided for @graph.
+  ///
+  /// In en, this message translates to:
+  /// **'Trends'**
+  String get graph;
+
+  /// No description provided for @legend.
+  ///
+  /// In en, this message translates to:
+  /// **'Legend'**
+  String get legend;
+
+  /// No description provided for @showAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle All'**
+  String get showAll;
 }
 
 class _AppLocalizationsDelegate

@@ -75,11 +75,41 @@ class AddEntryController extends ChangeNotifier {
     return _currentStatus.getFieldValue(fieldKey);
   }
 
+  /// Get default value for a field based on its type
+  dynamic _getDefaultValue(FieldDefinition field) {
+    switch (field.type) {
+      case FieldType.slider:
+        return 5.0; // Default middle value for sliders
+      case FieldType.number:
+        return 0.0;
+      case FieldType.boolean:
+        return false;
+      case FieldType.text:
+        return '';
+      default:
+        return null;
+    }
+  }
+
   Future<void> saveCurrentStatus() async {
     _isSaving = true;
     notifyListeners();
 
     try {
+      // Ensure all active fields have values (apply defaults for unset fields)
+      debugPrint('AddEntryController: Saving with ${_activeFields.length} active fields');
+      for (final field in _activeFields) {
+        final existingValue = _currentStatus.getFieldValue(field.id);
+        debugPrint('AddEntryController: Field ${field.labelKey} (${field.id}) = $existingValue');
+        if (existingValue == null) {
+          final defaultValue = _getDefaultValue(field);
+          if (defaultValue != null) {
+            debugPrint('AddEntryController: Adding default value $defaultValue for ${field.labelKey}');
+            _currentStatus.setFieldValue(field.id, defaultValue);
+          }
+        }
+      }
+
       if (_editingEntryId != null) {
         // Update existing entry
         final index = int.tryParse(_editingEntryId!);

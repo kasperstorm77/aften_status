@@ -266,5 +266,15 @@
       "date": {"type": "String"}
     }
   },
-  "backupRetentionInfo": "Backups: Today (all) + 7 days (1 per day)"
+  "backupRetentionInfo": "Backups: Today (all) + 7 days (1 per day)",
+  "showLess": "Show less",
+  "showMore": "Show {count} more",
+  "@showMore": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "graph": "Trends",
+  "legend": "Legend",
+  "showAll": "Toggle All"
 }

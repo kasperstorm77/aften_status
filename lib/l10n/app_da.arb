@@ -132,5 +132,10 @@
   "syncStatusRemoteOnly": "Skydata tilgængelig",
   "syncStatusNoData": "Ingen data",
   "lastSynced": "Sidst synkroniseret: {date}",
-  "backupRetentionInfo": "Backups: I dag (alle) + 7 dage (1 pr. dag)"
+  "backupRetentionInfo": "Backups: I dag (alle) + 7 dage (1 pr. dag)",
+  "showLess": "Vis mindre",
+  "showMore": "Vis {count} mere",
+  "graph": "Tendenser",
+  "legend": "Forklaring",
+  "showAll": "Vis/Skjul alle"
 }

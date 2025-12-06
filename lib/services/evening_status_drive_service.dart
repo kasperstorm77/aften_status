@@ -196,14 +196,20 @@ class EveningStatusDriveService {
       // Get field definitions if available
       List<Map<String, dynamic>> fieldDefinitions = [];
       try {
-        if (Hive.isBoxOpen('field_definitions')) {
-          final fieldBox = Hive.box<FieldDefinition>('field_definitions');
+        if (Hive.isBoxOpen('fieldDefinitions')) {
+          final fieldBox = Hive.box<FieldDefinition>('fieldDefinitions');
           fieldDefinitions = fieldBox.values.map((def) => {
             'id': def.id,
             'labelKey': def.labelKey,
             'type': def.type.index,
             'isActive': def.isActive,
+            'isRequired': def.isRequired,
             'orderIndex': def.orderIndex,
+            'isSystemField': def.isSystemField,
+            'localizedNames': def.localizedNames,
+            'options': def.options,
+            'createdAt': def.createdAt.toIso8601String(),
+            'updatedAt': def.updatedAt?.toIso8601String(),
           }).toList();
         }
       } catch (e) {
@@ -259,20 +265,44 @@ class EveningStatusDriveService {
       // Restore field definitions if present
       if (data.containsKey('fieldDefinitions')) {
         try {
-          final fieldBox = await Hive.openBox<FieldDefinition>('field_definitions');
+          final fieldBox = await Hive.openBox<FieldDefinition>('fieldDefinitions');
           await fieldBox.clear();
           
           final definitions = data['fieldDefinitions'] as List;
           for (final defData in definitions) {
+            // Parse localizedNames (could be Map<String, dynamic> from JSON)
+            Map<String, String> localizedNames = {};
+            if (defData['localizedNames'] != null) {
+              final rawNames = defData['localizedNames'] as Map<String, dynamic>;
+              localizedNames = rawNames.map((k, v) => MapEntry(k, v.toString()));
+            }
+            
+            // Parse options
+            Map<String, dynamic> options = {};
+            if (defData['options'] != null) {
+              options = Map<String, dynamic>.from(defData['options']);
+            }
+            
             final def = FieldDefinition(
               id: defData['id'],
               labelKey: defData['labelKey'] ?? defData['name'] ?? '',
               type: FieldType.values[defData['type'] ?? 0],
               isActive: defData['isActive'] ?? true,
+              isRequired: defData['isRequired'] ?? false,
               orderIndex: defData['orderIndex'] ?? defData['sortOrder'] ?? 0,
+              isSystemField: defData['isSystemField'] ?? false,
+              localizedNames: localizedNames,
+              options: options,
+              createdAt: defData['createdAt'] != null 
+                  ? DateTime.parse(defData['createdAt']) 
+                  : DateTime.now(),
+              updatedAt: defData['updatedAt'] != null 
+                  ? DateTime.parse(defData['updatedAt']) 
+                  : null,
             );
             await fieldBox.put(def.id, def);
           }
+          if (kDebugMode) print('EveningStatusDriveService: Restored ${definitions.length} field definitions');
         } catch (e) {
           if (kDebugMode) print('Could not restore field definitions: $e');
         }

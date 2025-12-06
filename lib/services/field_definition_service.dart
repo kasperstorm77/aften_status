@@ -1,10 +1,12 @@
 import 'package:hive/hive.dart';
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 import '../models/field_definition.dart';
 import 'evening_status_drive_service.dart';
 
 class FieldDefinitionService {
   static const String _boxName = 'fieldDefinitions';
+  static const _uuid = Uuid();
   late Box<FieldDefinition> _box;
   bool _isInitialized = false;
   
@@ -14,6 +16,14 @@ class FieldDefinitionService {
   static final FieldDefinitionService _instance = FieldDefinitionService._internal();
   factory FieldDefinitionService() => _instance;
   FieldDefinitionService._internal();
+
+  /// Force reload the field definitions from the Hive box
+  /// Call this after restoring from backup to refresh the cached data
+  Future<void> reload() async {
+    debugPrint('FieldDefinitionService: Forcing reload...');
+    _isInitialized = false;
+    await initialize();
+  }
 
   Future<void> initialize() async {
     // If already initialized and the box is open, nothing to do
@@ -74,43 +84,11 @@ class FieldDefinitionService {
         debugPrint('FieldDefinitionService: Field: ${field.id}, active: ${field.isActive}, system: ${field.isSystemField}');
       }
       
-      // If no soundSensibility field found, add it manually as a fallback
-      if (!fields.any((field) => field.id == 'soundSensibility')) {
-        debugPrint('FieldDefinitionService: soundSensibility not found, adding manually');
-        final soundSensibilityField = FieldDefinition(
-          id: 'soundSensibility',
-          labelKey: 'soundSensibility',
-          type: FieldType.slider,
-          isSystemField: true,
-          orderIndex: 0,
-          isActive: true,
-          localizedNames: {'en': 'Sound Sensibility', 'da': 'Lyd Følsomhed'},
-        );
-        fields.insert(0, soundSensibilityField);
-        // Try to save it to the box for next time
-        try {
-          await _box.put(soundSensibilityField.id, soundSensibilityField);
-        } catch (e) {
-          debugPrint('FieldDefinitionService: Could not save soundSensibility field: $e');
-        }
-      }
-      
       fields.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
       return fields;
     } catch (e) {
-      debugPrint('FieldDefinitionService: Error in getAllFields, returning default soundSensibility: $e');
-      // Return at least the soundSensibility field if everything fails
-      return [
-        FieldDefinition(
-          id: 'soundSensibility',
-          labelKey: 'soundSensibility',
-          type: FieldType.slider,
-          isSystemField: true,
-          orderIndex: 0,
-          isActive: true,
-          localizedNames: {'en': 'Sound Sensibility', 'da': 'Lyd Følsomhed'},
-        )
-      ];
+      debugPrint('FieldDefinitionService: Error in getAllFields: $e');
+      return [];
     }
   }
 
@@ -124,6 +102,16 @@ class FieldDefinitionService {
   Future<FieldDefinition?> getFieldById(String id) async {
     await initialize();
     return _box.get(id);
+  }
+
+  /// Get field definition by labelKey (for looking up fields by their key name)
+  Future<FieldDefinition?> getFieldByLabelKey(String labelKey) async {
+    await initialize();
+    try {
+      return _box.values.firstWhere((f) => f.labelKey == labelKey);
+    } catch (e) {
+      return null; // Not found
+    }
   }
 
   /// Add or update a field definition
@@ -147,10 +135,10 @@ class FieldDefinitionService {
     }
   }
 
-  /// Delete a field definition (only if not system field)
+  /// Delete a field definition
   Future<bool> deleteField(String id) async {
     final field = await getFieldById(id);
-    if (field != null && !field.isSystemField) {
+    if (field != null) {
       await _box.delete(id);
       await _triggerAutoSync();
       return true;
@@ -266,13 +254,15 @@ class FieldDefinitionService {
     debugPrint('FieldDefinitionService: Restoring missing default fields...');
     
     final defaultFields = _getDefaultFieldsList();
+    final existingLabelKeys = _box.values.map((f) => f.labelKey).toSet();
     int restoredCount = 0;
     
     for (final field in defaultFields) {
-      if (!_box.containsKey(field.id)) {
+      // Check by labelKey since IDs are now random UUIDs
+      if (!existingLabelKeys.contains(field.labelKey)) {
         await _box.put(field.id, field);
         restoredCount++;
-        debugPrint('FieldDefinitionService: Restored missing field: ${field.id}');
+        debugPrint('FieldDefinitionService: Restored missing field: ${field.labelKey}');
       }
     }
     
@@ -288,127 +278,127 @@ class FieldDefinitionService {
   List<FieldDefinition> _getDefaultFieldsList() {
     return [
       FieldDefinition(
-        id: 'soundSensibility',
+        id: _uuid.v4(),
         labelKey: 'soundSensibility',
         type: FieldType.slider,
-        isSystemField: true,
+        isSystemField: false,
         orderIndex: 0,
         isActive: true,
         localizedNames: {'en': 'Sound Sensibility', 'da': 'Lyd Følsomhed'},
       ),
       FieldDefinition(
-        id: 'sleepQuality',
+        id: _uuid.v4(),
         labelKey: 'sleepQuality',
         type: FieldType.slider,
-        isSystemField: true,
+        isSystemField: false,
         orderIndex: 1,
         isActive: true,
         localizedNames: {'en': 'Sleep Quality', 'da': 'Søvn Kvalitet'},
       ),
       FieldDefinition(
-        id: 'irritability',
+        id: _uuid.v4(),
         labelKey: 'irritability',
         type: FieldType.slider,
-        isSystemField: true,
+        isSystemField: false,
         orderIndex: 2,
         isActive: true,
         localizedNames: {'en': 'Irritability', 'da': 'Irritabilitet'},
       ),
       FieldDefinition(
-        id: 'socialWithdrawal',
+        id: _uuid.v4(),
         labelKey: 'socialWithdrawal',
         type: FieldType.slider,
-        isSystemField: true,
+        isSystemField: false,
         orderIndex: 3,
         isActive: true,
         localizedNames: {'en': 'Social Withdrawal', 'da': 'Social Tilbagetrækning'},
       ),
       FieldDefinition(
-        id: 'emotionalWithdrawal',
+        id: _uuid.v4(),
         labelKey: 'emotionalWithdrawal',
         type: FieldType.slider,
-        isSystemField: true,
+        isSystemField: false,
         orderIndex: 4,
         isActive: true,
         localizedNames: {'en': 'Emotional Withdrawal', 'da': 'Følelsesmæssig Tilbagetrækning'},
       ),
       FieldDefinition(
-        id: 'skinPicking',
+        id: _uuid.v4(),
         labelKey: 'skinPicking',
         type: FieldType.slider,
-        isSystemField: true,
+        isSystemField: false,
         orderIndex: 5,
         isActive: true,
         localizedNames: {'en': 'Skin Picking', 'da': 'Hud Plukning'},
       ),
       FieldDefinition(
-        id: 'tiredness',
+        id: _uuid.v4(),
         labelKey: 'tiredness',
         type: FieldType.slider,
-        isSystemField: true,
+        isSystemField: false,
         orderIndex: 6,
         isActive: true,
         localizedNames: {'en': 'Tiredness', 'da': 'Træthed'},
       ),
       FieldDefinition(
-        id: 'forgetfulnessOnConversations',
+        id: _uuid.v4(),
         labelKey: 'forgetfulnessOnConversations',
         type: FieldType.slider,
-        isSystemField: true,
+        isSystemField: false,
         orderIndex: 7,
         isActive: true,
         localizedNames: {'en': 'Forgetfulness on Conversations', 'da': 'Glemsel i Samtaler'},
       ),
       FieldDefinition(
-        id: 'lackOfFocus',
+        id: _uuid.v4(),
         labelKey: 'lackOfFocus',
         type: FieldType.slider,
-        isSystemField: true,
+        isSystemField: false,
         orderIndex: 8,
         isActive: true,
         localizedNames: {'en': 'Lack of Focus', 'da': 'Mangel på Fokus'},
       ),
       FieldDefinition(
-        id: 'lowToleranceTowardPeople',
+        id: _uuid.v4(),
         labelKey: 'lowToleranceTowardPeople',
         type: FieldType.slider,
-        isSystemField: true,
+        isSystemField: false,
         orderIndex: 9,
         isActive: true,
         localizedNames: {'en': 'Low Tolerance Toward People', 'da': 'Lav Tolerance Overfor Folk'},
       ),
       FieldDefinition(
-        id: 'easyToTears',
+        id: _uuid.v4(),
         labelKey: 'easyToTears',
         type: FieldType.slider,
-        isSystemField: true,
+        isSystemField: false,
         orderIndex: 10,
         isActive: true,
         localizedNames: {'en': 'Easy to Tears', 'da': 'Let til Tårer'},
       ),
       FieldDefinition(
-        id: 'interrupting',
+        id: _uuid.v4(),
         labelKey: 'interrupting',
         type: FieldType.slider,
-        isSystemField: true,
+        isSystemField: false,
         orderIndex: 11,
         isActive: true,
         localizedNames: {'en': 'Interrupting', 'da': 'Afbrydelse'},
       ),
       FieldDefinition(
-        id: 'misunderstanding',
+        id: _uuid.v4(),
         labelKey: 'misunderstanding',
         type: FieldType.slider,
-        isSystemField: true,
+        isSystemField: false,
         orderIndex: 12,
         isActive: true,
         localizedNames: {'en': 'Misunderstanding', 'da': 'Misforståelse'},
       ),
       FieldDefinition(
-        id: 'selfBlaming',
+        id: _uuid.v4(),
         labelKey: 'selfBlaming',
         type: FieldType.slider,
-        isSystemField: true,
+        isSystemField: false,
         orderIndex: 13,
         isActive: true,
         localizedNames: {'en': 'Self-blaming', 'da': 'Selvbebrejdelse'},

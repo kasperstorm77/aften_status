@@ -8,6 +8,8 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? additionalActions;
   final bool showSettings;
   final bool showLanguageSelector;
+  final bool showGraph;
+  final VoidCallback? onSettingsReturn;
 
   const CommonAppBar({
     super.key,
@@ -15,6 +17,8 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.additionalActions,
     this.showSettings = false,
     this.showLanguageSelector = true,
+    this.showGraph = false,
+    this.onSettingsReturn,
   });
 
   @override
@@ -22,6 +26,14 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       title: Text(title),
       actions: [
+        if (showGraph)
+          IconButton(
+            icon: const Icon(Icons.show_chart),
+            onPressed: () {
+              Modular.to.pushNamed('/graph');
+            },
+            tooltip: 'Graph',
+          ),
         if (showLanguageSelector)
           IconButton(
             icon: const Icon(Icons.language),
@@ -58,8 +70,9 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
         if (showSettings)
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              Modular.to.pushNamed('/settings');
+            onPressed: () async {
+              await Modular.to.pushNamed('/settings');
+              onSettingsReturn?.call();
             },
             tooltip: 'Settings',
           ),

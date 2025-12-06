@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import '../services/home_controller.dart';
+import '../services/field_definition_service.dart';
 import '../models/evening_status.dart';
+import '../models/field_definition.dart';
 import '../services/localization_service.dart';
 import 'widgets/common_app_bar.dart';
 import 'widgets/responsive_layout.dart';
@@ -31,6 +33,11 @@ class _HomePageState extends State<HomePage> {
       appBar: CommonAppBar(
         title: l10n.appTitle,
         showSettings: true,
+        showGraph: true,
+        onSettingsReturn: () {
+          // Reload entries when returning from settings (in case data was deleted)
+          controller.loadEntries();
+        },
       ),
       body: AnimatedBuilder(
         animation: controller,
@@ -149,138 +156,421 @@ class _EntryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final locale = Localizations.localeOf(context).languageCode;
+    final l10n = AppLocalizations.of(context)!;
     
     // Calculate average score from field values
     final fieldValues = entry.fieldValues;
-    double averageScore = 5.0;
-    if (fieldValues.isNotEmpty) {
-      final numericValues = fieldValues.values
-          .whereType<num>()
-          .map((v) => v.toDouble())
-          .toList();
-      if (numericValues.isNotEmpty) {
-        averageScore = numericValues.reduce((a, b) => a + b) / numericValues.length;
-      }
+    final numericEntries = fieldValues.entries
+        .where((e) => e.value is num)
+        .toList();
+    
+    double? averageScore;
+    if (numericEntries.isNotEmpty) {
+      final sum = numericEntries
+          .map((e) => (e.value as num).toDouble())
+          .reduce((a, b) => a + b);
+      averageScore = sum / numericEntries.length;
     }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          formatDate(entry.timestamp),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
+    return Dismissible(
+      key: Key(entry.timestamp.toIso8601String()),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.error,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(
+          Icons.delete_outline,
+          color: theme.colorScheme.onError,
+        ),
+      ),
+      confirmDismiss: (direction) async {
+        onDelete();
+        return false; // Let the dialog handle the actual deletion
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header row with date/time and average score
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Date and time
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            formatDate(entry.timestamp),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          formatTime(entry.timestamp),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          const SizedBox(height: 2),
+                          Text(
+                            formatTime(entry.timestamp),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _getScoreColor(averageScore, theme).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _getScoreColor(averageScore, theme).withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Text(
-                          AppLocalizations.of(context)!.averageScore(averageScore.toStringAsFixed(1)),
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: _getScoreColor(averageScore, theme),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                    // Average score badge
+                    if (averageScore != null)
+                      _AverageScoreBadge(
+                        score: averageScore,
+                        label: l10n.averageScore(averageScore.toStringAsFixed(1)),
                       ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: onDelete,
-                        color: theme.colorScheme.error,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                        padding: EdgeInsets.zero,
-                      ),
-                    ],
+                  ],
+                ),
+                
+                // Score visualization
+                if (numericEntries.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _ScoreBarChart(
+                    entries: numericEntries,
+                    locale: locale,
                   ),
                 ],
-              ),
-              const SizedBox(height: 12),
-              _buildScorePreview(theme, context),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+}
 
-  Color _getScoreColor(double score, ThemeData theme) {
-    if (score <= 3) {
-      return Colors.green;
-    } else if (score <= 6) {
-      return Colors.orange;
-    } else {
-      return Colors.red;
+/// A colored badge showing the average score
+class _AverageScoreBadge extends StatelessWidget {
+  final double score;
+  final String label;
+
+  const _AverageScoreBadge({
+    required this.score,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _getScoreColor(score);
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _getScoreIcon(score),
+            size: 16,
+            color: color,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getScoreColor(double score) {
+    if (score <= 3) return Colors.green;
+    if (score <= 5) return Colors.teal;
+    if (score <= 7) return Colors.orange;
+    return Colors.red;
+  }
+
+  IconData _getScoreIcon(double score) {
+    if (score <= 3) return Icons.sentiment_very_satisfied;
+    if (score <= 5) return Icons.sentiment_satisfied;
+    if (score <= 7) return Icons.sentiment_neutral;
+    return Icons.sentiment_dissatisfied;
+  }
+}
+
+/// A horizontal bar chart showing individual field scores
+class _ScoreBarChart extends StatefulWidget {
+  final List<MapEntry<String, dynamic>> entries;
+  final String locale;
+
+  const _ScoreBarChart({
+    required this.entries,
+    required this.locale,
+  });
+
+  @override
+  State<_ScoreBarChart> createState() => _ScoreBarChartState();
+}
+
+class _ScoreBarChartState extends State<_ScoreBarChart> {
+  List<_FieldScoreData>? _fieldScores;
+  bool _isLoading = true;
+  bool _isExpanded = false;
+  static const int _collapsedCount = 2;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFieldDefinitions();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ScoreBarChart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload if the entries or locale changed
+    if (widget.locale != oldWidget.locale ||
+        widget.entries.length != oldWidget.entries.length ||
+        !_entriesEqual(widget.entries, oldWidget.entries)) {
+      _loadFieldDefinitions();
     }
   }
 
-  Widget _buildScorePreview(ThemeData theme, BuildContext context) {
-    final fieldValues = entry.fieldValues;
-    if (fieldValues.isEmpty) {
+  bool _entriesEqual(List<MapEntry<String, dynamic>> a, List<MapEntry<String, dynamic>> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].key != b[i].key || a[i].value != b[i].value) return false;
+    }
+    return true;
+  }
+
+  Future<void> _loadFieldDefinitions() async {
+    try {
+      final fieldService = Modular.get<FieldDefinitionService>();
+      
+      final List<_FieldScoreData> scores = [];
+      
+      debugPrint('_ScoreBarChart: Processing ${widget.entries.length} entry values');
+      
+      for (final entry in widget.entries) {
+        final key = entry.key;
+        
+        // Try to find field - could be stored by ID (UUID) or labelKey
+        FieldDefinition? fieldDef;
+        
+        // First try by ID (newer entries use UUID as key)
+        fieldDef = await fieldService.getFieldById(key);
+        
+        // If not found, try by labelKey (older entries use labelKey as key)
+        if (fieldDef == null) {
+          fieldDef = await fieldService.getFieldByLabelKey(key);
+        }
+        
+        // Only include fields that still exist and are active
+        if (fieldDef != null && fieldDef.isActive) {
+          scores.add(_FieldScoreData(
+            label: fieldDef.getDisplayLabel(widget.locale),
+            score: (entry.value as num).toDouble(),
+            orderIndex: fieldDef.orderIndex,
+          ));
+        } else {
+          debugPrint('_ScoreBarChart: Field not found or inactive for key: $key (fieldDef=${fieldDef != null}, active=${fieldDef?.isActive})');
+        }
+      }
+      
+      // Sort by order index (as defined in field management)
+      scores.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+      
+      debugPrint('_ScoreBarChart: Loaded ${scores.length} field scores');
+      
+      if (mounted) {
+        setState(() {
+          _fieldScores = scores;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('_ScoreBarChart: Error loading field definitions: $e');
+      if (mounted) {
+        setState(() {
+          _fieldScores = [];
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    
+    if (_isLoading) {
+      return const SizedBox(height: 40); // Placeholder height while loading
+    }
+    
+    if (_fieldScores == null || _fieldScores!.isEmpty) {
       return const SizedBox.shrink();
     }
     
-    return Wrap(
-      spacing: 4,
-      runSpacing: 3,
-      children: fieldValues.entries
-          .where((e) => e.value is num)
-          .take(8) // Show max 8 fields in preview
-          .map((e) => _buildScoreChip(
-            e.key.length > 10 ? '${e.key.substring(0, 10)}...' : e.key,
-            (e.value as num).toDouble(),
-            theme,
-          ))
-          .toList(),
+    final hasMoreFields = _fieldScores!.length > _collapsedCount;
+    final displayScores = _isExpanded 
+        ? _fieldScores! 
+        : _fieldScores!.take(_collapsedCount).toList();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < displayScores.length; i++)
+          Padding(
+            padding: EdgeInsets.only(bottom: i < displayScores.length - 1 ? 6 : 0),
+            child: _ScoreBarItem(
+              label: displayScores[i].label,
+              score: displayScores[i].score,
+              maxScore: 10,
+            ),
+          ),
+        
+        // Show expand/collapse toggle if there are more fields
+        if (hasMoreFields)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _isExpanded = !_isExpanded;
+                });
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _isExpanded ? Icons.expand_less : Icons.expand_more,
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _isExpanded 
+                        ? l10n.showLess
+                        : l10n.showMore(_fieldScores!.length - _collapsedCount),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Data class for field score display
+class _FieldScoreData {
+  final String label;
+  final double score;
+  final int orderIndex;
+
+  _FieldScoreData({
+    required this.label,
+    required this.score,
+    required this.orderIndex,
+  });
+}
+
+/// Individual score bar with label and visual indicator
+class _ScoreBarItem extends StatelessWidget {
+  final String label;
+  final double score;
+  final double maxScore;
+
+  const _ScoreBarItem({
+    required this.label,
+    required this.score,
+    required this.maxScore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final progress = score / maxScore;
+    final color = _getScoreColor(score);
+    
+    return Row(
+      children: [
+        // Label
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Bar
+        Expanded(
+          child: Container(
+            height: 8,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: progress.clamp(0.0, 1.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Score value
+        SizedBox(
+          width: 24,
+          child: Text(
+            score.toInt().toString(),
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.end,
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildScoreChip(String label, double score, ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        '$label: ${score.toInt()}',
-        style: theme.textTheme.bodySmall?.copyWith(
-          fontSize: 9,
-        ),
-      ),
-    );
+  Color _getScoreColor(double score) {
+    if (score <= 3) return Colors.green;
+    if (score <= 5) return Colors.teal;
+    if (score <= 7) return Colors.orange;
+    return Colors.red;
   }
 }

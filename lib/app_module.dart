@@ -17,6 +17,7 @@ import 'pages/add_entry_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/google_drive_sync_page.dart';
 import 'pages/field_management_page.dart';
+import 'pages/graph_page.dart';
 
 class AppModule extends Module {
   // Static instance for locale provider to ensure singleton behavior
@@ -67,6 +68,9 @@ class AppModule extends Module {
     r.child('/', child: (context) => const HomePage());
     r.child('/add-entry', child: (context) => const AddEntryPage());
     r.child('/edit-entry/:id', child: (context) => AddEntryPage(entryId: r.args.params['id']));
+    
+    // Graph route
+    r.child('/graph', child: (context) => const GraphPage());
     
     // Settings routes
     r.child('/settings', child: (context) => const SettingsPage());

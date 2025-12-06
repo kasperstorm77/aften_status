@@ -431,4 +431,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupRetentionInfo => 'Backups: Today (all) + 7 days (1 per day)';
+
+  @override
+  String get showLess => 'Show less';
+
+  @override
+  String showMore(int count) {
+    return 'Show $count more';
+  }
+
+  @override
+  String get graph => 'Trends';
+
+  @override
+  String get legend => 'Legend';
+
+  @override
+  String get showAll => 'Toggle All';
 }

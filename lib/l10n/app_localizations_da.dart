@@ -433,4 +433,21 @@ class AppLocalizationsDa extends AppLocalizations {
   @override
   String get backupRetentionInfo =>
       'Backups: I dag (alle) + 7 dage (1 pr. dag)';
+
+  @override
+  String get showLess => 'Vis mindre';
+
+  @override
+  String showMore(int count) {
+    return 'Vis $count mere';
+  }
+
+  @override
+  String get graph => 'Tendenser';
+
+  @override
+  String get legend => 'Forklaring';
+
+  @override
+  String get showAll => 'Vis/Skjul alle';
 }

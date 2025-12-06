@@ -146,7 +146,9 @@ class StorageService {
   Future<void> emergencyReset() async {
     await _ensureInitialized();
     debugPrint('StorageService: EMERGENCY RESET - Deleting all data');
+    debugPrint('StorageService: Box has ${_eveningStatusBox!.length} entries before clear');
     await _eveningStatusBox!.clear();
+    debugPrint('StorageService: Box has ${_eveningStatusBox!.length} entries after clear');
     debugPrint('StorageService: All data deleted');
   }
 
