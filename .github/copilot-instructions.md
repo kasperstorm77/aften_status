@@ -152,14 +152,25 @@ flutter create --platforms=ios .
 - `git rebase`
 - Any other git command
 
-### 2. Protect Secrets
+### 2. NO BUILD COMMANDS WITHOUT EXPLICIT PERMISSION
+**NEVER** run build commands for release/App Store unless the user explicitly asks for it. This includes:
+- `flutter build ipa`
+- `flutter build ios --release`
+- Any App Store/release build command
+
+When building for App Store:
+- **ALWAYS** increment the version/build number in `pubspec.yaml` first
+- Version format: `version: X.Y.Z+BUILD` (e.g., `1.0.0+1` → `1.0.0+2` or `1.0.1+3`)
+- Ask the user if unsure whether to increment minor version or just build number
+
+### 3. Protect Secrets
 Never output or display contents of secret files. Always use templates for examples.
 
-### 3. Hive Adapter Order
+### 4. Hive Adapter Order
 Register adapters in `StorageService.init()` before opening boxes. Order matters - register `FieldTypeAdapter` before `FieldDefinitionAdapter`.
 
-### 4. Singleton Services
+### 5. Singleton Services
 `EveningStatusDriveService` uses singleton pattern - access via `.instance`, not constructor.
 
-### 5. Localization
+### 6. Localization
 Always add strings to BOTH `app_en.arb` and `app_da.arb` when adding new UI text.
