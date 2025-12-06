@@ -578,6 +578,24 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to delete this field? This will remove it from all entries.'**
   String get areYouSureYouWantToDeleteThisField;
 
+  /// No description provided for @restoreDefaultFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore Default Fields'**
+  String get restoreDefaultFields;
+
+  /// No description provided for @restoredDefaultFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored {count} default fields'**
+  String restoredDefaultFields(int count);
+
+  /// No description provided for @allDefaultFieldsExist.
+  ///
+  /// In en, this message translates to:
+  /// **'All default fields already exist'**
+  String get allDefaultFieldsExist;
+
   /// No description provided for @fieldCreatedSuccessfully.
   ///
   /// In en, this message translates to:
@@ -715,6 +733,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No backups available'**
   String get noBackupsAvailable;
+
+  /// No description provided for @selectBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a backup'**
+  String get selectBackup;
 
   /// No description provided for @restoreBackup.
   ///

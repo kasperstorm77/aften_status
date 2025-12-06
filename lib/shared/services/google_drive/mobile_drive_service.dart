@@ -215,6 +215,23 @@ class MobileDriveService {
     }
   }
 
+  /// Delete a file by its Google Drive file ID
+  Future<void> deleteFile(String fileId) async {
+    if (_driveClient == null) {
+      if (!await _ensureAuthenticated()) {
+        if (kDebugMode) print('MobileDriveService: Cannot delete file - not authenticated');
+        return;
+      }
+    }
+    
+    try {
+      await _driveClient!.deleteFile(fileId);
+      if (kDebugMode) print('MobileDriveService: Deleted file by ID: $fileId');
+    } catch (e) {
+      if (kDebugMode) print('MobileDriveService: Failed to delete file by ID $fileId: $e');
+    }
+  }
+
   /// List available backup files from Drive
   Future<List<Map<String, dynamic>>> listAvailableBackups() async {
     if (kDebugMode) print('MobileDriveService.listAvailableBackups() called');

@@ -372,4 +372,22 @@ class WindowsDriveService {
       if (kDebugMode) print('Windows Drive: Failed to delete backup $fileName: $e');
     }
   }
+
+  /// Delete a file by its Google Drive file ID
+  Future<void> deleteFileById(String fileId) async {
+    try {
+      await _authService.refreshTokenIfNeeded();
+      
+      final client = await _authService.createDriveClient();
+      if (client == null) {
+        if (kDebugMode) print('Windows Drive: Not signed in');
+        return;
+      }
+
+      await client.deleteFile(fileId);
+      if (kDebugMode) print('Windows Drive: Deleted file by ID: $fileId');
+    } catch (e) {
+      if (kDebugMode) print('Windows Drive: Delete by ID failed: $e');
+    }
+  }
 }

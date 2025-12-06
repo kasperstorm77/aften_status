@@ -21,6 +21,7 @@ class _GoogleDriveSyncPageState extends State<GoogleDriveSyncPage> {
   bool _isLoading = false;
   String? _statusMessage;
   List<Map<String, dynamic>> _availableBackups = [];
+  Map<String, dynamic>? _selectedBackup;
   
   @override
   void initState() {
@@ -188,15 +189,44 @@ class _GoogleDriveSyncPageState extends State<GoogleDriveSyncPage> {
             const SizedBox(height: 8),
             if (_availableBackups.isEmpty)
               Text(l10n.noBackupsAvailable)
-            else
-              ...(_availableBackups.take(5).map((backup) => ListTile(
-                leading: const Icon(Icons.backup),
-                title: Text(backup['fileName'] ?? 'Unknown'),
-                subtitle: backup['date'] != null 
-                    ? Text(_formatDate(backup['date'] as DateTime))
-                    : null,
-                onTap: () => _restoreBackup(backup),
-              ))),
+            else ...[
+              DropdownButtonFormField<Map<String, dynamic>>(
+                initialValue: _selectedBackup,
+                decoration: InputDecoration(
+                  labelText: l10n.selectBackup,
+                  border: const OutlineInputBorder(),
+                ),
+                isExpanded: true,
+                items: _availableBackups.map((backup) {
+                  final fileName = backup['fileName'] as String? ?? 'Unknown';
+                  final date = backup['date'] as DateTime?;
+                  final displayText = date != null
+                      ? '$fileName (${_formatDate(date)})'
+                      : fileName;
+                  return DropdownMenuItem<Map<String, dynamic>>(
+                    value: backup,
+                    child: Text(
+                      displayText,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() => _selectedBackup = value);
+                },
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _selectedBackup != null
+                      ? () => _restoreBackup(_selectedBackup!)
+                      : null,
+                  icon: const Icon(Icons.restore),
+                  label: Text(l10n.restoreBackup),
+                ),
+              ),
+            ],
           ],
         ),
       ),

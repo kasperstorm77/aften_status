@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../models/field_definition.dart';
-import '../../services/localization_service.dart';
 
 /// Dynamic widget that renders the appropriate input based on field type
 class DynamicFieldWidget extends StatelessWidget {
@@ -15,29 +14,16 @@ class DynamicFieldWidget extends StatelessWidget {
     required this.onChanged,
   });
 
-  /// Get the localized label for this field
+  /// Get the localized label for this field using embedded localizedNames
   String _getLabel(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    if (l10n == null) {
-      // Fallback if localizations aren't available
-      return field.labelKey;
-    }
-    
-    // First check for custom labels
     final locale = Localizations.localeOf(context).languageCode;
-    final customLabel = field.customLabels[locale];
-    if (customLabel != null && customLabel.isNotEmpty) {
-      return customLabel;
-    }
-    
-    // Use the localization helper to get the translated label
-    return getLocalizedFieldName(l10n, field.labelKey);
+    return field.getDisplayLabel(locale);
   }
 
   @override
   Widget build(BuildContext context) {
     switch (field.type) {
-      case FieldType.rating:
+      case FieldType.slider:
         return _buildSliderField(context);
       case FieldType.text:
         return _buildTextField(context);

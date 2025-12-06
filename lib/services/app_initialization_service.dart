@@ -15,6 +15,10 @@ class AppInitializationService {
 
   bool _isInitialized = false;
   
+  // Data format version - increment this to trigger a fresh reset
+  static const int _dataFormatVersion = 2;
+  static const String _versionKey = 'dataFormatVersion';
+  
   /// Initialize all services in the correct dependency order
   Future<void> initialize() async {
     if (_isInitialized) {
@@ -41,6 +45,9 @@ class AppInitializationService {
         Hive.registerAdapter(FieldTypeAdapter());
         debugPrint('AppInitializationService: FieldType adapter registered');
       }
+
+      // Step 2.5: Check if we need to reset data for new format
+      await _checkAndResetForNewDataFormat();
 
       // Step 3: Initialize FieldDefinitionService (needs Hive to be ready)
       final fieldDefinitionService = FieldDefinitionService();
@@ -119,6 +126,53 @@ class AppInitializationService {
     } catch (e) {
       // Silent failure - don't block app startup
       debugPrint('AppInitializationService: Silent sync check failed: $e');
+    }
+  }
+
+  /// Check if data format version changed and reset all data if needed
+  /// This ensures clean slate when data structure changes
+  Future<void> _checkAndResetForNewDataFormat() async {
+    try {
+      // Open settings box to check version
+      final settingsBox = await Hive.openBox('settings');
+      final storedVersion = settingsBox.get(_versionKey, defaultValue: 0) as int;
+      
+      if (storedVersion < _dataFormatVersion) {
+        debugPrint('AppInitializationService: Data format version changed from $storedVersion to $_dataFormatVersion');
+        debugPrint('AppInitializationService: Clearing all local data for fresh start...');
+        
+        // Clear field definitions box
+        if (Hive.isBoxOpen('fieldDefinitions')) {
+          await Hive.box('fieldDefinitions').clear();
+        } else {
+          final box = await Hive.openBox<FieldDefinition>('fieldDefinitions');
+          await box.clear();
+        }
+        debugPrint('AppInitializationService: Field definitions cleared');
+        
+        // Clear evening status box
+        if (Hive.isBoxOpen('evening_status')) {
+          await Hive.box('evening_status').clear();
+        } else {
+          final box = await Hive.openBox<EveningStatus>('evening_status');
+          await box.clear();
+        }
+        debugPrint('AppInitializationService: Evening status entries cleared');
+        
+        // Update version
+        await settingsBox.put(_versionKey, _dataFormatVersion);
+        debugPrint('AppInitializationService: Data format version updated to $_dataFormatVersion');
+        
+        // Clear any old Google Drive backups by resetting sync state
+        await settingsBox.delete('lastSyncTimestamp');
+        await settingsBox.delete('lastLocalUpdateTimestamp');
+        debugPrint('AppInitializationService: Sync timestamps reset');
+      } else {
+        debugPrint('AppInitializationService: Data format version is current ($storedVersion)');
+      }
+    } catch (e) {
+      debugPrint('AppInitializationService: Error checking data format version: $e');
+      // Continue anyway - don't block initialization
     }
   }
 }

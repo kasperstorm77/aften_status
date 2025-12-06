@@ -150,27 +150,19 @@ class StorageService {
     debugPrint('StorageService: All data deleted');
   }
 
-  // Trigger automatic sync to Google Drive if enabled
+  // Trigger automatic sync to Google Drive if enabled (debounced)
   Future<void> _triggerAutoSync() async {
     try {
       // Always update local timestamp when data changes
       await _driveService.updateLocalLastModified();
       
       if (_driveService.syncEnabled && _driveService.isAuthenticated) {
-        debugPrint('StorageService: Auto-syncing to Google Drive...');
-        // Use smart sync which checks timestamps
-        final uploaded = await _driveService.smartUploadFromBox(
-          _eveningStatusBox!,
-          forceUpload: true, // Local changes should always upload
-        );
-        if (uploaded) {
-          debugPrint('StorageService: Auto-sync completed');
-        } else {
-          debugPrint('StorageService: Auto-sync skipped (timestamp check)');
-        }
+        debugPrint('StorageService: Scheduling debounced sync to Google Drive...');
+        // Use debounced sync to prevent rapid-fire uploads
+        _driveService.scheduleDebouncedSync();
       }
     } catch (e) {
-      debugPrint('StorageService: Auto-sync failed: $e');
+      debugPrint('StorageService: Auto-sync scheduling failed: $e');
       // Don't rethrow - sync failure shouldn't break local operations
     }
   }

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -80,6 +81,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Manage Fields
+                        _buildManageFieldsButton(context, l10n),
+                        const SizedBox(height: 24),
+                        
                         // Sign In/Out Button
                         _buildAuthButton(context, l10n),
                         const SizedBox(height: 16),
@@ -107,6 +112,12 @@ class _SettingsPageState extends State<SettingsPage> {
                         // Delete All Entries
                         _buildDeleteAllButton(context, l10n),
                         const SizedBox(height: 24),
+                        
+                        // Debug: Clear All Backups (only visible in debug mode)
+                        if (kDebugMode) ...[                          
+                          _buildClearBackupsButton(context, l10n),
+                          const SizedBox(height: 24),
+                        ],
                       ],
                     ),
                   ),
@@ -128,6 +139,17 @@ class _SettingsPageState extends State<SettingsPage> {
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 16),
         side: BorderSide(color: Theme.of(context).colorScheme.primary),
+      ),
+    );
+  }
+
+  Widget _buildManageFieldsButton(BuildContext context, AppLocalizations l10n) {
+    return FilledButton.icon(
+      onPressed: () => Modular.to.pushNamed('/settings/fields'),
+      icon: const Icon(Icons.tune),
+      label: Text(l10n.manageFields),
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 16),
       ),
     );
   }
@@ -175,6 +197,8 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  String? _selectedBackup;
+
   Widget _buildBackupSection(BuildContext context, AppLocalizations l10n) {
     return Card(
       child: Padding(
@@ -194,36 +218,81 @@ class _SettingsPageState extends State<SettingsPage> {
                 IconButton(
                   icon: const Icon(Icons.refresh),
                   onPressed: _driveService.isAuthenticated ? _loadBackups : null,
+                  tooltip: 'Refresh backups',
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              _availableBackups.isEmpty 
-                  ? l10n.noBackupsAvailable
-                  : '${_availableBackups.length} ${l10n.backupsAvailable}',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            const SizedBox(height: 12),
+            
+            // Backup dropdown
+            if (!_driveService.isAuthenticated)
+              Text(
+                'Sign in to Google to see available backups',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              )
+            else if (_availableBackups.isEmpty)
+              Text(
+                l10n.noBackupsAvailable,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              )
+            else ...[
+              DropdownButtonFormField<String>(
+                initialValue: _selectedBackup,
+                decoration: InputDecoration(
+                  labelText: l10n.selectBackup,
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                hint: Text('${_availableBackups.length} ${l10n.backupsAvailable}'),
+                isExpanded: true,
+                items: _availableBackups.map((backup) {
+                  final fileName = backup['fileName'] as String? ?? 'Unknown';
+                  final displayDate = backup['displayDate'] as String? ?? '';
+                  return DropdownMenuItem<String>(
+                    value: fileName,
+                    child: Text(displayDate.isNotEmpty ? displayDate : fileName),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() => _selectedBackup = value);
+                },
               ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _availableBackups.isNotEmpty ? _showRestoreDialog : null,
-                icon: const Icon(Icons.download),
-                label: Text(l10n.restoreFromBackup),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _selectedBackup != null ? () => _restoreSelectedBackup() : null,
+                  icon: const Icon(Icons.download),
+                  label: Text(l10n.restoreFromBackup),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _restoreSelectedBackup() async {
+    if (_selectedBackup == null) return;
+    
+    final backup = _availableBackups.firstWhere(
+      (b) => b['fileName'] == _selectedBackup,
+      orElse: () => {},
+    );
+    
+    if (backup.isNotEmpty) {
+      await _restoreBackup(backup);
+    }
   }
 
   Widget _buildUploadButton(BuildContext context, AppLocalizations l10n) {
@@ -251,7 +320,63 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _buildClearBackupsButton(BuildContext context, AppLocalizations l10n) {
+    return ElevatedButton.icon(
+      onPressed: _driveService.isAuthenticated ? _clearAllBackups : null,
+      icon: const Icon(Icons.delete_forever),
+      label: const Text('[DEBUG] Clear All Backups'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+    );
+  }
+
   // === Actions ===
+
+  Future<void> _clearAllBackups() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('[DEBUG] Clear All Backups'),
+        content: const Text('This will delete ALL backup files from Google Drive. This action cannot be undone. Are you sure?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      // Delete all backup files
+      for (final backup in _availableBackups) {
+        final fileId = backup['fileId'] as String?;
+        if (fileId != null) {
+          await _driveService.deleteBackupFile(fileId);
+        }
+      }
+      
+      _availableBackups.clear();
+      _selectedBackup = null;
+      _showMessage('All backups deleted');
+      await _loadBackups();
+    } catch (e) {
+      _showError('Failed to clear backups: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   Future<void> _signIn() async {
     setState(() => _isLoading = true);
@@ -326,44 +451,6 @@ class _SettingsPageState extends State<SettingsPage> {
     } finally {
       setState(() => _isLoading = false);
     }
-  }
-
-  void _showRestoreDialog() {
-    final l10n = AppLocalizations.of(context)!;
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.selectRestorePoint),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: _availableBackups.length,
-            itemBuilder: (context, index) {
-              final backup = _availableBackups[index];
-              return ListTile(
-                leading: const Icon(Icons.backup),
-                title: Text(backup['fileName'] ?? 'Backup ${index + 1}'),
-                subtitle: backup['date'] != null 
-                    ? Text(_formatDate(backup['date'] as DateTime))
-                    : null,
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _restoreBackup(backup);
-                },
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.cancel),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _restoreBackup(Map<String, dynamic> backup) async {
@@ -462,9 +549,5 @@ class _SettingsPageState extends State<SettingsPage> {
         backgroundColor: Colors.red,
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 }

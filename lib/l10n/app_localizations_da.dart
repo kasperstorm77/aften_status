@@ -263,6 +263,17 @@ class AppLocalizationsDa extends AppLocalizations {
       'Er du sikker på, at du vil slette dette felt? Dette vil fjerne det fra alle indtastninger.';
 
   @override
+  String get restoreDefaultFields => 'Gendan Standardfelter';
+
+  @override
+  String restoredDefaultFields(int count) {
+    return 'Gendannede $count standardfelter';
+  }
+
+  @override
+  String get allDefaultFieldsExist => 'Alle standardfelter findes allerede';
+
+  @override
   String get fieldCreatedSuccessfully => 'Felt oprettet succesfuldt';
 
   @override
@@ -339,6 +350,9 @@ class AppLocalizationsDa extends AppLocalizations {
 
   @override
   String get noBackupsAvailable => 'Ingen backups tilgængelige';
+
+  @override
+  String get selectBackup => 'Vælg en backup';
 
   @override
   String get restoreBackup => 'Gendan Backup';

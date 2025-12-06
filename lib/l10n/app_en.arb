@@ -184,6 +184,14 @@
   "addCustomField": "Add Custom Field",
   "deleteField": "Delete Field",
   "areYouSureYouWantToDeleteThisField": "Are you sure you want to delete this field? This will remove it from all entries.",
+  "restoreDefaultFields": "Restore Default Fields",
+  "restoredDefaultFields": "Restored {count} default fields",
+  "@restoredDefaultFields": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "allDefaultFieldsExist": "All default fields already exist",
   "fieldCreatedSuccessfully": "Field created successfully",
   "errorCreatingField": "Error creating field: {error}",
   "@errorCreatingField": {
@@ -227,6 +235,7 @@
   "downloadNow": "Download Now",
   "availableBackups": "Available Backups",
   "noBackupsAvailable": "No backups available",
+  "selectBackup": "Select a backup",
   "restoreBackup": "Restore Backup",
   "restoreBackupConfirmation": "This will replace your current data with the selected backup. Continue?",
   "dataManagement": "Data Management",

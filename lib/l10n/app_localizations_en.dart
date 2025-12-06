@@ -263,6 +263,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Are you sure you want to delete this field? This will remove it from all entries.';
 
   @override
+  String get restoreDefaultFields => 'Restore Default Fields';
+
+  @override
+  String restoredDefaultFields(int count) {
+    return 'Restored $count default fields';
+  }
+
+  @override
+  String get allDefaultFieldsExist => 'All default fields already exist';
+
+  @override
   String get fieldCreatedSuccessfully => 'Field created successfully';
 
   @override
@@ -338,6 +349,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noBackupsAvailable => 'No backups available';
+
+  @override
+  String get selectBackup => 'Select a backup';
 
   @override
   String get restoreBackup => 'Restore Backup';

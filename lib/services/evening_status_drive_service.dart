@@ -24,6 +24,11 @@ class EveningStatusDriveService {
   
   final StreamController<int> _uploadCountController = StreamController<int>.broadcast();
 
+  // Debouncing for auto-sync
+  Timer? _syncDebounceTimer;
+  static const _syncDebounceDelay = Duration(seconds: 5); // Wait 5 seconds after last change
+  bool _syncPending = false;
+
   EveningStatusDriveService._() {
     _initializePlatformService();
   }
@@ -148,6 +153,37 @@ class EveningStatusDriveService {
     if (!PlatformHelper.isDesktop) {
       _mobileDriveService?.clearExternalClient();
     }
+  }
+
+  /// Schedule a debounced sync - waits for activity to settle before syncing
+  /// This prevents rapid-fire syncs when multiple changes happen in quick succession
+  void scheduleDebouncedSync() {
+    if (!syncEnabled || !isAuthenticated) {
+      return;
+    }
+    
+    _syncPending = true;
+    _syncDebounceTimer?.cancel();
+    _syncDebounceTimer = Timer(_syncDebounceDelay, () async {
+      if (_syncPending) {
+        _syncPending = false;
+        if (kDebugMode) print('EveningStatusDriveService: Debounced sync triggered');
+        try {
+          if (Hive.isBoxOpen('evening_status')) {
+            final box = Hive.box<EveningStatus>('evening_status');
+            await uploadFromBox(box);
+          }
+        } catch (e) {
+          if (kDebugMode) print('EveningStatusDriveService: Debounced sync failed: $e');
+        }
+      }
+    });
+  }
+
+  /// Cancel any pending debounced sync
+  void cancelPendingSync() {
+    _syncDebounceTimer?.cancel();
+    _syncPending = false;
   }
 
   /// Upload evening status entries from Hive box
@@ -275,6 +311,15 @@ class EveningStatusDriveService {
       return await _windowsDriveService?.driveService.downloadBackupContent(fileName);
     } else {
       return await _mobileDriveService?.downloadBackupContent(fileName);
+    }
+  }
+
+  /// Delete a specific backup file by ID (for debug/cleanup purposes)
+  Future<void> deleteBackupFile(String fileId) async {
+    if (PlatformHelper.isDesktop) {
+      await _windowsDriveService?.driveService.deleteFileById(fileId);
+    } else {
+      await _mobileDriveService?.deleteFile(fileId);
     }
   }
 

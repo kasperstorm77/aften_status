@@ -1,4 +1,4 @@
-{
+ {
   "@@locale": "da",
   "appTitle": "Aften Status",
   "newEveningStatus": "Ny Aften Status",
@@ -80,6 +80,9 @@
   "addCustomField": "Tilføj Brugerdefineret Felt",
   "deleteField": "Slet Felt",
   "areYouSureYouWantToDeleteThisField": "Er du sikker på, at du vil slette dette felt? Dette vil fjerne det fra alle indtastninger.",
+  "restoreDefaultFields": "Gendan Standardfelter",
+  "restoredDefaultFields": "Gendannede {count} standardfelter",
+  "allDefaultFieldsExist": "Alle standardfelter findes allerede",
   "fieldCreatedSuccessfully": "Felt oprettet succesfuldt",
   "errorCreatingField": "Fejl ved oprettelse af felt: {error}",
   "fieldUpdatedSuccessfully": "Felt opdateret succesfuldt",
@@ -103,6 +106,7 @@
   "downloadNow": "Download Nu",
   "availableBackups": "Tilgængelige Backups",
   "noBackupsAvailable": "Ingen backups tilgængelige",
+  "selectBackup": "Vælg en backup",
   "restoreBackup": "Gendan Backup",
   "restoreBackupConfirmation": "Dette vil erstatte dine nuværende data med den valgte backup. Fortsæt?",
   "dataManagement": "Datahåndtering",

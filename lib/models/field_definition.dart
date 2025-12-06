@@ -11,7 +11,7 @@ enum FieldType {
   @HiveField(2)
   boolean,
   @HiveField(3)
-  rating,
+  slider, // Renamed from rating for clarity
   @HiveField(4)
   multipleChoice,
   @HiveField(5)
@@ -24,7 +24,7 @@ class FieldDefinition extends HiveObject {
   String id;
 
   @HiveField(1)
-  String labelKey; // Key for localization
+  String labelKey; // Kept for backward compatibility, but no longer used for ARB lookup
 
   @HiveField(2)
   FieldType type;
@@ -36,13 +36,13 @@ class FieldDefinition extends HiveObject {
   int orderIndex;
 
   @HiveField(5)
-  Map<String, dynamic> options; // For multiple choice options, min/max values, etc.
+  Map<String, dynamic> options; // For slider min/max, multiple choice options, etc.
 
   @HiveField(6)
-  bool isSystemField; // Core fields that can't be deleted
+  bool isSystemField; // Sample fields that came with the app (can be deleted now)
 
   @HiveField(7)
-  Map<String, String> customLabels; // User custom labels per locale
+  Map<String, String> localizedNames; // Language code -> display name (e.g., {'en': 'Sound Sensibility', 'da': 'Lyd Følsomhed'})
 
   @HiveField(8)
   bool isActive; // Can be deactivated instead of deleted
@@ -61,29 +61,57 @@ class FieldDefinition extends HiveObject {
     this.orderIndex = 0,
     this.options = const {},
     this.isSystemField = false,
-    this.customLabels = const {},
+    this.localizedNames = const {},
     this.isActive = true,
     DateTime? createdAt,
     this.updatedAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
-  // Get the display label for current locale
+  /// Get the display label for a given locale with fallback logic
+  /// 1. Try exact locale match (e.g., 'da')
+  /// 2. Try any available language
+  /// 3. Fallback to labelKey
   String getDisplayLabel(String locale) {
-    // First check for custom labels
-    if (customLabels.containsKey(locale) && customLabels[locale]!.isNotEmpty) {
-      return customLabels[locale]!;
+    // First check for exact locale match
+    if (localizedNames.containsKey(locale) && localizedNames[locale]!.isNotEmpty) {
+      return localizedNames[locale]!;
     }
     
-    // Fallback to localization key (will be handled by localization service)
+    // Try to find any available localized name
+    if (localizedNames.isNotEmpty) {
+      // Prefer English as secondary fallback, then any other
+      if (localizedNames.containsKey('en') && localizedNames['en']!.isNotEmpty) {
+        return localizedNames['en']!;
+      }
+      // Return first available non-empty name
+      for (final name in localizedNames.values) {
+        if (name.isNotEmpty) return name;
+      }
+    }
+    
+    // Final fallback to labelKey (for backward compatibility)
     return labelKey;
   }
 
-  // Set custom label for locale
-  void setCustomLabel(String locale, String label) {
-    final newLabels = Map<String, String>.from(customLabels);
-    newLabels[locale] = label;
-    customLabels = newLabels;
+  /// Set localized name for a specific locale
+  void setLocalizedName(String locale, String name) {
+    final newNames = Map<String, String>.from(localizedNames);
+    newNames[locale] = name;
+    localizedNames = newNames;
     updatedAt = DateTime.now();
+  }
+
+  /// Check if field has at least one localized name
+  bool get hasLocalizedName {
+    return localizedNames.values.any((name) => name.isNotEmpty);
+  }
+
+  /// Get all available locales for this field
+  List<String> get availableLocales {
+    return localizedNames.entries
+        .where((e) => e.value.isNotEmpty)
+        .map((e) => e.key)
+        .toList();
   }
 
   Map<String, dynamic> toMap() {
@@ -95,7 +123,7 @@ class FieldDefinition extends HiveObject {
       'orderIndex': orderIndex,
       'options': options,
       'isSystemField': isSystemField,
-      'customLabels': customLabels,
+      'localizedNames': localizedNames,
       'isActive': isActive,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
@@ -108,13 +136,13 @@ class FieldDefinition extends HiveObject {
       labelKey: map['labelKey'] ?? '',
       type: FieldType.values.firstWhere(
         (e) => e.name == map['type'],
-        orElse: () => FieldType.text,
+        orElse: () => FieldType.slider,
       ),
       isRequired: map['isRequired'] ?? false,
       orderIndex: map['orderIndex'] ?? 0,
       options: Map<String, dynamic>.from(map['options'] ?? {}),
       isSystemField: map['isSystemField'] ?? false,
-      customLabels: Map<String, String>.from(map['customLabels'] ?? {}),
+      localizedNames: Map<String, String>.from(map['localizedNames'] ?? {}),
       isActive: map['isActive'] ?? true,
       createdAt: DateTime.parse(map['createdAt'] ?? DateTime.now().toIso8601String()),
       updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
@@ -129,7 +157,7 @@ class FieldDefinition extends HiveObject {
     int? orderIndex,
     Map<String, dynamic>? options,
     bool? isSystemField,
-    Map<String, String>? customLabels,
+    Map<String, String>? localizedNames,
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -142,7 +170,7 @@ class FieldDefinition extends HiveObject {
       orderIndex: orderIndex ?? this.orderIndex,
       options: options ?? this.options,
       isSystemField: isSystemField ?? this.isSystemField,
-      customLabels: customLabels ?? this.customLabels,
+      localizedNames: localizedNames ?? this.localizedNames,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:uuid/uuid.dart';
 import '../models/field_definition.dart';
 import '../services/field_definition_service.dart';
-import '../services/localization_service.dart';
+import '../l10n/app_localizations.dart';
 import 'widgets/common_app_bar.dart';
 import 'widgets/responsive_layout.dart';
 
@@ -43,6 +44,19 @@ class _FieldManagementPageState extends State<FieldManagementPage> {
       appBar: CommonAppBar(
         title: l10n.manageFields,
         showSettings: false,
+        additionalActions: [
+          // Restore default fields button
+          IconButton(
+            icon: const Icon(Icons.restore),
+            tooltip: l10n.restoreDefaultFields,
+            onPressed: _restoreDefaultFields,
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showFieldDialog(context),
+        icon: const Icon(Icons.add),
+        label: Text(l10n.addCustomField),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -50,12 +64,47 @@ class _FieldManagementPageState extends State<FieldManagementPage> {
     );
   }
 
-  Widget _buildFieldList(BuildContext context) {
+  Future<void> _restoreDefaultFields() async {
     final l10n = AppLocalizations.of(context)!;
     
+    setState(() => _isLoading = true);
+    try {
+      final restoredCount = await _fieldService.restoreDefaultFields();
+      await _loadFields();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(restoredCount > 0 
+                ? l10n.restoredDefaultFields(restoredCount)
+                : l10n.allDefaultFieldsExist),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Widget _buildFieldList(BuildContext context) {
     if (_fields.isEmpty) {
-      return const Center(
-        child: Text('No fields defined'),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.list_alt, size: 64, color: Theme.of(context).colorScheme.outline),
+            const SizedBox(height: 16),
+            Text('No fields defined', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text('Tap + to add your first field', style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ),
       );
     }
 
@@ -64,59 +113,101 @@ class _FieldManagementPageState extends State<FieldManagementPage> {
         constraints: BoxConstraints(
           maxWidth: ResponsiveLayout.getMaxWidth(context),
         ),
-        child: ListView.builder(
-          padding: ResponsiveLayout.getHorizontalPadding(context).add(
-            const EdgeInsets.symmetric(vertical: 16),
-          ),
+        child: ReorderableListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           itemCount: _fields.length,
+          onReorder: _reorderFields,
           itemBuilder: (context, index) {
             final field = _fields[index];
-            return _buildFieldTile(context, field, l10n);
+            return _buildFieldTile(context, field, index);
           },
         ),
       ),
     );
   }
 
-  Widget _buildFieldTile(BuildContext context, FieldDefinition field, AppLocalizations l10n) {
+  Widget _buildFieldTile(BuildContext context, FieldDefinition field, int index) {
     final theme = Theme.of(context);
-    final label = getLocalizedFieldName(l10n, field.labelKey);
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
+    final label = field.getDisplayLabel(locale);
     
     return Card(
+      key: ValueKey(field.id),
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: Icon(
-          _getFieldTypeIcon(field.type),
-          color: field.isActive 
-              ? theme.colorScheme.primary 
-              : theme.colorScheme.onSurface.withValues(alpha: 0.4),
-        ),
-        title: Text(
-          label,
-          style: TextStyle(
-            color: field.isActive 
-                ? null 
-                : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+        leading: ReorderableDragStartListener(
+          index: index,
+          child: Icon(
+            Icons.drag_handle,
+            color: theme.colorScheme.outline,
           ),
         ),
-        subtitle: Text(
-          field.isSystemField ? 'System field' : 'Custom field',
-          style: theme.textTheme.bodySmall,
+        title: Row(
+          children: [
+            Icon(
+              _getFieldTypeIcon(field.type),
+              size: 20,
+              color: field.isActive 
+                  ? theme.colorScheme.primary 
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.4),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: field.isActive 
+                      ? null 
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+          ],
         ),
-        trailing: Switch(
-          value: field.isActive,
-          onChanged: field.isSystemField 
-              ? null // System fields cannot be disabled
-              : (value) => _toggleField(field, value),
+        subtitle: _buildFieldSubtitle(field, locale),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Active toggle
+            Switch(
+              value: field.isActive,
+              onChanged: (value) => _toggleField(field, value),
+            ),
+            // Edit button
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => _showFieldDialog(context, field: field),
+              tooltip: l10n.edit,
+            ),
+            // Delete button
+            IconButton(
+              icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+              onPressed: () => _confirmDeleteField(context, field, l10n),
+              tooltip: l10n.delete,
+            ),
+          ],
         ),
       ),
     );
   }
 
+  Widget? _buildFieldSubtitle(FieldDefinition field, String locale) {
+    final availableLocales = field.availableLocales;
+    if (availableLocales.length <= 1) return null;
+    
+    // Show other available translations
+    final otherLocales = availableLocales.where((l) => l != locale).toList();
+    if (otherLocales.isEmpty) return null;
+    
+    final otherNames = otherLocales.map((l) => '${l.toUpperCase()}: ${field.localizedNames[l]}').join(', ');
+    return Text(otherNames, style: const TextStyle(fontSize: 12));
+  }
+
   IconData _getFieldTypeIcon(FieldType type) {
     switch (type) {
-      case FieldType.rating:
-        return Icons.star;
+      case FieldType.slider:
+        return Icons.linear_scale;
       case FieldType.text:
         return Icons.text_fields;
       case FieldType.number:
@@ -137,5 +228,281 @@ class _FieldManagementPageState extends State<FieldManagementPage> {
       await _fieldService.deactivateField(field.id);
     }
     await _loadFields();
+  }
+
+  Future<void> _reorderFields(int oldIndex, int newIndex) async {
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    
+    setState(() {
+      final field = _fields.removeAt(oldIndex);
+      _fields.insert(newIndex, field);
+    });
+    
+    // Update order indices
+    for (int i = 0; i < _fields.length; i++) {
+      await _fieldService.updateFieldOrder(_fields[i].id, i);
+    }
+  }
+
+  Future<void> _showFieldDialog(BuildContext context, {FieldDefinition? field}) async {
+    final result = await showDialog<FieldDefinition>(
+      context: context,
+      builder: (context) => FieldEditDialog(
+        field: field,
+        existingFields: _fields,
+      ),
+    );
+    
+    if (result != null) {
+      if (field == null) {
+        // Creating new field
+        await _fieldService.saveField(result);
+      } else {
+        // Updating existing field
+        await _fieldService.updateField(field.id, result);
+      }
+      await _loadFields();
+    }
+  }
+
+  Future<void> _confirmDeleteField(BuildContext context, FieldDefinition field, AppLocalizations l10n) async {
+    final locale = Localizations.localeOf(context).languageCode;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.deleteField),
+        content: Text('${l10n.areYouSureYouWantToDeleteThisField}\n\n"${field.getDisplayLabel(locale)}"'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed == true) {
+      await _fieldService.deleteField(field.id);
+      await _loadFields();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.fieldDeletedSuccessfully)),
+        );
+      }
+    }
+  }
+}
+
+/// Dialog for creating or editing a field
+class FieldEditDialog extends StatefulWidget {
+  final FieldDefinition? field;
+  final List<FieldDefinition> existingFields;
+
+  const FieldEditDialog({
+    super.key,
+    this.field,
+    required this.existingFields,
+  });
+
+  @override
+  State<FieldEditDialog> createState() => _FieldEditDialogState();
+}
+
+class _FieldEditDialogState extends State<FieldEditDialog> {
+  final _formKey = GlobalKey<FormState>();
+  static const _uuid = Uuid();
+  
+  late TextEditingController _nameEnController;
+  late TextEditingController _nameDaController;
+  late FieldType _selectedType;
+  late bool _isRequired;
+  
+  bool get isEditing => widget.field != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameEnController = TextEditingController(text: widget.field?.localizedNames['en'] ?? '');
+    _nameDaController = TextEditingController(text: widget.field?.localizedNames['da'] ?? '');
+    _selectedType = widget.field?.type ?? FieldType.slider;
+    _isRequired = widget.field?.isRequired ?? false;
+  }
+
+  @override
+  void dispose() {
+    _nameEnController.dispose();
+    _nameDaController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
+    return AlertDialog(
+      title: Text(isEditing ? l10n.edit : l10n.addCustomField),
+      content: SizedBox(
+        width: 400,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // English name (required)
+                TextFormField(
+                  controller: _nameEnController,
+                  decoration: const InputDecoration(
+                    labelText: 'Name (English) *',
+                    hintText: 'Enter field name in English',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'English name is required';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Danish name (optional)
+                TextFormField(
+                  controller: _nameDaController,
+                  decoration: const InputDecoration(
+                    labelText: 'Name (Danish)',
+                    hintText: 'Enter field name in Danish (optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Field type dropdown
+                DropdownButtonFormField<FieldType>(
+                  initialValue: _selectedType,
+                  decoration: const InputDecoration(
+                    labelText: 'Field Type',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: FieldType.values.map((type) {
+                    return DropdownMenuItem(
+                      value: type,
+                      child: Row(
+                        children: [
+                          Icon(_getFieldTypeIcon(type), size: 20),
+                          const SizedBox(width: 8),
+                          Text(_getFieldTypeName(type)),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _selectedType = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Required toggle
+                SwitchListTile(
+                  title: Text(l10n.requiredField),
+                  subtitle: Text(l10n.usersMustFillThisField),
+                  value: _isRequired,
+                  onChanged: (value) => setState(() => _isRequired = value),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          onPressed: _saveField,
+          child: Text(l10n.save),
+        ),
+      ],
+    );
+  }
+
+  IconData _getFieldTypeIcon(FieldType type) {
+    switch (type) {
+      case FieldType.slider:
+        return Icons.linear_scale;
+      case FieldType.text:
+        return Icons.text_fields;
+      case FieldType.number:
+        return Icons.numbers;
+      case FieldType.boolean:
+        return Icons.toggle_on;
+      case FieldType.multipleChoice:
+        return Icons.list;
+      case FieldType.date:
+        return Icons.calendar_today;
+    }
+  }
+
+  String _getFieldTypeName(FieldType type) {
+    switch (type) {
+      case FieldType.slider:
+        return 'Slider (1-10)';
+      case FieldType.text:
+        return 'Text';
+      case FieldType.number:
+        return 'Number';
+      case FieldType.boolean:
+        return 'Yes/No Toggle';
+      case FieldType.multipleChoice:
+        return 'Multiple Choice';
+      case FieldType.date:
+        return 'Date';
+    }
+  }
+
+  void _saveField() {
+    if (!_formKey.currentState!.validate()) return;
+    
+    final localizedNames = <String, String>{};
+    
+    final enName = _nameEnController.text.trim();
+    if (enName.isNotEmpty) {
+      localizedNames['en'] = enName;
+    }
+    
+    final daName = _nameDaController.text.trim();
+    if (daName.isNotEmpty) {
+      localizedNames['da'] = daName;
+    }
+    
+    // Generate UUID for new fields
+    final fieldId = isEditing ? widget.field!.id : _uuid.v4();
+    
+    final field = FieldDefinition(
+      id: fieldId,
+      labelKey: fieldId, // labelKey same as id for custom fields
+      type: _selectedType,
+      isRequired: _isRequired,
+      orderIndex: isEditing ? widget.field!.orderIndex : widget.existingFields.length,
+      isSystemField: false, // User-created fields are never system fields
+      localizedNames: localizedNames,
+      isActive: isEditing ? widget.field!.isActive : true,
+      createdAt: isEditing ? widget.field!.createdAt : DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    
+    Navigator.of(context).pop(field);
   }
 }
