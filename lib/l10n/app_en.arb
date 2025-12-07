@@ -276,5 +276,15 @@
   },
   "graph": "Trends",
   "legend": "Legend",
-  "showAll": "Toggle All"
+  "showAll": "Toggle All",
+  "disconnectGoogleDrive": "Disconnect Google Drive & Delete Backup",
+  "disconnectConfirmation": "This will sign out from Google and delete ALL your backup data from Google Drive. Your local data will NOT be affected. This action cannot be undone.",
+  "disconnect": "Disconnect & Delete",
+  "disconnectSuccess": "Disconnected from Google Drive and deleted all backups",
+  "disconnectFailed": "Disconnect failed: {error}",
+  "@disconnectFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  }
 }

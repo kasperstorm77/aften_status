@@ -450,4 +450,23 @@ class AppLocalizationsDa extends AppLocalizations {
 
   @override
   String get showAll => 'Vis/Skjul alle';
+
+  @override
+  String get disconnectGoogleDrive => 'Afbryd Google Drive & Slet Backup';
+
+  @override
+  String get disconnectConfirmation =>
+      'Dette vil logge ud fra Google og slette ALLE dine backup data fra Google Drive. Dine lokale data vil IKKE blive påvirket. Denne handling kan ikke fortrydes.';
+
+  @override
+  String get disconnect => 'Afbryd & Slet';
+
+  @override
+  String get disconnectSuccess =>
+      'Afbrudt fra Google Drive og slettet alle backups';
+
+  @override
+  String disconnectFailed(String error) {
+    return 'Afbrydelse mislykkedes: $error';
+  }
 }

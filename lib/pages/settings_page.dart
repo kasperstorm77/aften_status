@@ -115,6 +115,10 @@ class _SettingsPageState extends State<SettingsPage> {
                         _buildUploadButton(context, l10n),
                         const SizedBox(height: 12),
                         
+                        // Disconnect Google Drive & Delete Backup
+                        _buildDisconnectButton(context, l10n),
+                        const SizedBox(height: 24),
+                        
                         // Delete All Entries
                         _buildDeleteAllButton(context, l10n),
                         const SizedBox(height: 24),
@@ -322,6 +326,19 @@ class _SettingsPageState extends State<SettingsPage> {
       label: Text(l10n.uploadToGoogleDriveManual),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+    );
+  }
+
+  Widget _buildDisconnectButton(BuildContext context, AppLocalizations l10n) {
+    return ElevatedButton.icon(
+      onPressed: _driveService.isAuthenticated ? _showDisconnectDialog : null,
+      icon: const Icon(Icons.link_off),
+      label: Text(l10n.disconnectGoogleDrive),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.red,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 16),
       ),
@@ -697,6 +714,47 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+  }
+
+  void _showDisconnectDialog() {
+    final l10n = AppLocalizations.of(context)!;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.disconnectGoogleDrive),
+        content: Text(l10n.disconnectConfirmation),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _disconnectAndDeleteBackups();
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(l10n.disconnect),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _disconnectAndDeleteBackups() async {
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => _isLoading = true);
+    try {
+      await _driveService.disconnectAndDeleteAllBackups();
+      _availableBackups.clear();
+      _selectedBackup = null;
+      _showMessage(l10n.disconnectSuccess);
+    } catch (e) {
+      _showError(l10n.disconnectFailed(e.toString()));
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _deleteAllEntries() async {

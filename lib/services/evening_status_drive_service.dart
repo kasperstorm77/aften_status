@@ -131,6 +131,24 @@ class EveningStatusDriveService {
     await _saveSyncState(false);
   }
 
+  /// Delete all backup files from Google Drive and sign out
+  /// This completely disconnects the app from Google Drive
+  Future<void> disconnectAndDeleteAllBackups() async {
+    // First get all backups
+    final backups = await listAvailableBackups();
+    
+    // Delete each backup file
+    for (final backup in backups) {
+      final fileId = backup['fileId'] as String?;
+      if (fileId != null) {
+        await deleteBackupFile(fileId);
+      }
+    }
+    
+    // Sign out
+    await signOut();
+  }
+
   /// Enable/disable sync
   Future<void> setSyncEnabled(bool enabled) async {
     if (PlatformHelper.isDesktop) {

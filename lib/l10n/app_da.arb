@@ -137,5 +137,10 @@
   "showMore": "Vis {count} mere",
   "graph": "Tendenser",
   "legend": "Forklaring",
-  "showAll": "Vis/Skjul alle"
+  "showAll": "Vis/Skjul alle",
+  "disconnectGoogleDrive": "Afbryd Google Drive & Slet Backup",
+  "disconnectConfirmation": "Dette vil logge ud fra Google og slette ALLE dine backup data fra Google Drive. Dine lokale data vil IKKE blive påvirket. Denne handling kan ikke fortrydes.",
+  "disconnect": "Afbryd & Slet",
+  "disconnectSuccess": "Afbrudt fra Google Drive og slettet alle backups",
+  "disconnectFailed": "Afbrydelse mislykkedes: {error}"
 }

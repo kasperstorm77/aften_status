@@ -448,4 +448,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get showAll => 'Toggle All';
+
+  @override
+  String get disconnectGoogleDrive => 'Disconnect Google Drive & Delete Backup';
+
+  @override
+  String get disconnectConfirmation =>
+      'This will sign out from Google and delete ALL your backup data from Google Drive. Your local data will NOT be affected. This action cannot be undone.';
+
+  @override
+  String get disconnect => 'Disconnect & Delete';
+
+  @override
+  String get disconnectSuccess =>
+      'Disconnected from Google Drive and deleted all backups';
+
+  @override
+  String disconnectFailed(String error) {
+    return 'Disconnect failed: $error';
+  }
 }

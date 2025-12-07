@@ -919,6 +919,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Toggle All'**
   String get showAll;
+
+  /// No description provided for @disconnectGoogleDrive.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect Google Drive & Delete Backup'**
+  String get disconnectGoogleDrive;
+
+  /// No description provided for @disconnectConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'This will sign out from Google and delete ALL your backup data from Google Drive. Your local data will NOT be affected. This action cannot be undone.'**
+  String get disconnectConfirmation;
+
+  /// No description provided for @disconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect & Delete'**
+  String get disconnect;
+
+  /// No description provided for @disconnectSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected from Google Drive and deleted all backups'**
+  String get disconnectSuccess;
+
+  /// No description provided for @disconnectFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect failed: {error}'**
+  String disconnectFailed(String error);
 }
 
 class _AppLocalizationsDelegate
