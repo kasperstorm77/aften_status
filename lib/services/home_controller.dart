@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import '../models/evening_status.dart';
@@ -18,14 +19,10 @@ class HomeController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      debugPrint('HomeController: Initializing storage service...');
       await _storageService.init();
-      
-      debugPrint('HomeController: Loading local entries...');
       await loadEntries();
-      debugPrint('HomeController: Loaded ${_entries.length} local entries');
     } catch (e) {
-      debugPrint('Error initializing HomeController: $e');
+      if (kDebugMode) debugPrint('Error initializing HomeController: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -39,7 +36,7 @@ class HomeController extends ChangeNotifier {
       _entries.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading entries: $e');
+      if (kDebugMode) debugPrint('Error loading entries: $e');
     }
   }
 
@@ -48,7 +45,7 @@ class HomeController extends ChangeNotifier {
       await _storageService.deleteEveningStatus(index);
       await loadEntries(); // Reload to refresh the list
     } catch (e) {
-      debugPrint('Error deleting entry: $e');
+      if (kDebugMode) debugPrint('Error deleting entry: $e');
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import '../models/field_definition.dart';
 import '../services/add_entry_controller.dart';
 import '../services/localization_service.dart';
 import 'widgets/common_app_bar.dart';
@@ -23,6 +24,22 @@ class _AddEntryPageState extends State<AddEntryPage> {
     super.initState();
     controller = Modular.get<AddEntryController>();
     controller.init(entryId: widget.entryId);
+  }
+  
+  /// Returns the appropriate onChange handler based on field type.
+  /// Text and number fields don't notify to prevent rebuild during typing.
+  /// Sliders, toggles, etc. need immediate UI feedback.
+  void Function(dynamic) _getOnChanged(FieldDefinition field) {
+    switch (field.type) {
+      case FieldType.text:
+      case FieldType.number:
+        return (value) => controller.updateFieldValue(field.id, value);
+      case FieldType.slider:
+      case FieldType.boolean:
+      case FieldType.multipleChoice:
+      case FieldType.date:
+        return (value) => controller.updateFieldValueWithNotify(field.id, value);
+    }
   }
 
   @override
@@ -54,22 +71,41 @@ class _AddEntryPageState extends State<AddEntryPage> {
                     constraints: BoxConstraints(
                       maxWidth: ResponsiveLayout.getMaxWidth(context),
                     ),
-                    child: ResponsiveLayout.isTablet(context)
-                        ? GridView.extent(
-                            padding: ResponsiveLayout.getHorizontalPadding(context).add(
-                              const EdgeInsets.all(16),
-                            ),
-                            maxCrossAxisExtent: ResponsiveLayout.getSliderCardMaxWidth(context),
-                            childAspectRatio: 2.5,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            children: _buildSliderCards(),
-                          )
-                        : ListView(
-                            padding: ResponsiveLayout.getHorizontalPadding(context).add(
-                              const EdgeInsets.all(16),
-                            ),
-                            children: _buildSliderCards(),
+                    child: ListView.builder(
+                            padding: const EdgeInsets.all(12),
+                            itemCount: (controller.activeFields.length / 2).ceil(),
+                            itemBuilder: (context, rowIndex) {
+                              final firstIndex = rowIndex * 2;
+                              final secondIndex = firstIndex + 1;
+                              final hasSecond = secondIndex < controller.activeFields.length;
+                              final firstField = controller.activeFields[firstIndex];
+                              
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: DynamicFieldWidget(
+                                        field: firstField,
+                                        value: controller.getFieldValue(firstField.id),
+                                        onChanged: _getOnChanged(firstField),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: hasSecond
+                                          ? DynamicFieldWidget(
+                                              field: controller.activeFields[secondIndex],
+                                              value: controller.getFieldValue(controller.activeFields[secondIndex].id),
+                                              onChanged: _getOnChanged(controller.activeFields[secondIndex]),
+                                            )
+                                          : const SizedBox(),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
                   ),
                 ),
@@ -106,15 +142,5 @@ class _AddEntryPageState extends State<AddEntryPage> {
         },
       ),
     );
-  }
-
-  List<Widget> _buildSliderCards() {
-    return controller.activeFields.map((field) {
-      return DynamicFieldWidget(
-        field: field,
-        value: controller.getFieldValue(field.id),
-        onChanged: (value) => controller.updateFieldValue(field.id, value),
-      );
-    }).toList();
   }
 }

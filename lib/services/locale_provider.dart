@@ -25,12 +25,8 @@ class LocaleProvider extends ChangeNotifier {
       
       if (savedLanguageCode != null) {
         _locale = Locale(savedLanguageCode);
-        debugPrint('LocaleProvider: Loaded saved locale: $savedLanguageCode');
-      } else {
-        debugPrint('LocaleProvider: No saved locale, using default: en');
       }
     } catch (e) {
-      debugPrint('LocaleProvider: Error loading locale: $e');
       // If loading fails, use default locale
       _locale = const Locale('en');
     }
@@ -49,9 +45,7 @@ class LocaleProvider extends ChangeNotifier {
         }
         final settingsBox = Hive.box('settings');
         await settingsBox.put('language', locale.languageCode);
-        debugPrint('LocaleProvider: Saved locale: ${locale.languageCode}');
       } catch (e) {
-        debugPrint('LocaleProvider: Error saving locale: $e');
         // Persist failed, but locale change still applied in memory
       }
     }

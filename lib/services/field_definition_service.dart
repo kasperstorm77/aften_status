@@ -20,7 +20,6 @@ class FieldDefinitionService {
   /// Force reload the field definitions from the Hive box
   /// Call this after restoring from backup to refresh the cached data
   Future<void> reload() async {
-    debugPrint('FieldDefinitionService: Forcing reload...');
     _isInitialized = false;
     await initialize();
   }
@@ -38,25 +37,15 @@ class FieldDefinitionService {
       } else {
         _box = await Hive.openBox<FieldDefinition>(_boxName);
       }
-      debugPrint('FieldDefinitionService: Opened box with ${_box.length} existing fields');
       
       // Initialize with default field definitions if none exist
       if (_box.isEmpty) {
-        debugPrint('FieldDefinitionService: Box is empty, initializing default fields');
         await _initializeDefaultFields();
-      } else {
-        debugPrint('FieldDefinitionService: Box already contains ${_box.length} fields');
-        // List existing fields for debugging
-        for (final key in _box.keys) {
-          final field = _box.get(key);
-          debugPrint('FieldDefinitionService: Existing field: $key -> ${field?.labelKey}');
-        }
       }
       
       _isInitialized = true;
-      debugPrint('FieldDefinitionService: Initialized successfully');
     } catch (e) {
-      debugPrint('FieldDefinitionService: Failed to initialize: $e');
+      if (kDebugMode) debugPrint('FieldDefinitionService: Failed to initialize: $e');
       rethrow;
     }
   }
@@ -64,14 +53,10 @@ class FieldDefinitionService {
   /// Initialize default field definitions with embedded localized names
   /// These are sample fields that users can modify or delete
   Future<void> _initializeDefaultFields() async {
-    debugPrint('FieldDefinitionService: Initializing default fields...');
     final defaultFields = _getDefaultFieldsList();
-
     for (final field in defaultFields) {
       await _box.put(field.id, field);
-      debugPrint('FieldDefinitionService: Initialized field: ${field.id}');
     }
-    debugPrint('FieldDefinitionService: Initialized ${defaultFields.length} default fields');
   }
 
   /// Get all field definitions ordered by their order property
@@ -79,15 +64,10 @@ class FieldDefinitionService {
     try {
       await initialize();
       final fields = _box.values.toList();
-      debugPrint('FieldDefinitionService: getAllFields() found ${fields.length} fields');
-      for (final field in fields) {
-        debugPrint('FieldDefinitionService: Field: ${field.id}, active: ${field.isActive}, system: ${field.isSystemField}');
-      }
-      
       fields.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
       return fields;
     } catch (e) {
-      debugPrint('FieldDefinitionService: Error in getAllFields: $e');
+      if (kDebugMode) debugPrint('FieldDefinitionService: Error in getAllFields: $e');
       return [];
     }
   }
@@ -251,7 +231,6 @@ class FieldDefinitionService {
   /// Returns the number of fields restored
   Future<int> restoreDefaultFields() async {
     await initialize();
-    debugPrint('FieldDefinitionService: Restoring missing default fields...');
     
     final defaultFields = _getDefaultFieldsList();
     final existingLabelKeys = _box.values.map((f) => f.labelKey).toSet();
@@ -262,7 +241,6 @@ class FieldDefinitionService {
       if (!existingLabelKeys.contains(field.labelKey)) {
         await _box.put(field.id, field);
         restoredCount++;
-        debugPrint('FieldDefinitionService: Restored missing field: ${field.labelKey}');
       }
     }
     
@@ -270,7 +248,6 @@ class FieldDefinitionService {
       await _triggerAutoSync();
     }
     
-    debugPrint('FieldDefinitionService: Restored $restoredCount default fields');
     return restoredCount;
   }
 
@@ -410,12 +387,10 @@ class FieldDefinitionService {
   Future<void> _triggerAutoSync() async {
     try {
       if (_driveService.syncEnabled && _driveService.isAuthenticated) {
-        debugPrint('FieldDefinitionService: Scheduling debounced sync to Google Drive...');
         // Use debounced sync to prevent rapid-fire uploads
         _driveService.scheduleDebouncedSync();
       }
     } catch (e) {
-      debugPrint('FieldDefinitionService: Auto-sync scheduling failed: $e');
       // Don't rethrow - sync failure shouldn't break local operations
     }
   }

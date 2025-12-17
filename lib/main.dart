@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
@@ -9,35 +11,32 @@ import 'services/app_initialization_service.dart';
 import 'l10n/app_localizations.dart';
 
 void main() async {
-  // Install global error handlers FIRST to capture any initialization errors
+  // Install global error handlers for debugging
   FlutterError.onError = (FlutterErrorDetails details) {
-    debugPrint('UNCAUGHT FLUTTER ERROR: ${details.exception}\n${details.stack}');
+    if (kDebugMode) debugPrint('Flutter error: ${details.exception}');
     FlutterError.presentError(details);
   };
 
   PlatformDispatcher.instance.onError = (error, stack) {
-    debugPrint('UNCAUGHT ASYNC ERROR: $error\n$stack');
+    if (kDebugMode) debugPrint('Async error: $error');
     return true;
   };
 
   try {
     WidgetsFlutterBinding.ensureInitialized();
-    debugPrint('DEBUG: Flutter binding initialized');
     
-    // Initialize app services with robust error handling
-    debugPrint('DEBUG: Starting app service initialization...');
+    // Pre-warm the keyboard to avoid freeze on first use (iOS optimization)
+    _preWarmKeyboard();
     
+    // Initialize app services
     try {
       final appInitService = AppInitializationService();
       await appInitService.initialize();
-      debugPrint('DEBUG: App services initialized successfully');
-    } catch (e, st) {
-      debugPrint('DEBUG: App initialization failed: $e\n$st');
-      debugPrint('DEBUG: Continuing with app launch - services will initialize on-demand');
-      // Continue anyway - services will initialize when needed
+    } catch (e) {
+      // Continue anyway - services will initialize on-demand
+      if (kDebugMode) debugPrint('App initialization failed: $e');
     }
     
-    debugPrint('DEBUG: Launching Flutter app...');
     runApp(ModularApp(
       module: AppModule(),
       child: const AftenStatusApp(),
@@ -164,4 +163,17 @@ class _AftenStatusAppState extends State<AftenStatusApp> {
       ),
     );
   }
+}
+
+/// Pre-warm the iOS keyboard to reduce freeze on first appearance
+void _preWarmKeyboard() {
+  // This triggers iOS to load keyboard resources in the background
+  // by briefly connecting to the text input system
+  Future.delayed(const Duration(milliseconds: 500), () {
+    final channel = SystemChannels.textInput;
+    channel.invokeMethod('TextInput.show');
+    Future.delayed(const Duration(milliseconds: 100), () {
+      channel.invokeMethod('TextInput.hide');
+    });
+  });
 }

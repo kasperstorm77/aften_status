@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import '../models/evening_status.dart';
@@ -57,8 +58,10 @@ class AddEntryController extends ChangeNotifier {
         _currentStatus = EveningStatus();
       }
     } catch (e) {
-      final st = StackTrace.current;
-      debugPrint('Error initializing AddEntryController: $e\n$st');
+      if (kDebugMode) {
+        final st = StackTrace.current;
+        debugPrint('Error initializing AddEntryController: $e\n$st');
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -66,6 +69,14 @@ class AddEntryController extends ChangeNotifier {
   }
 
   void updateFieldValue(String fieldKey, dynamic value) {
+    _fieldErrors.remove(fieldKey);
+    _currentStatus.setFieldValue(fieldKey, value);
+    // Don't notify listeners for every keystroke - the input widgets maintain their own state
+    // This prevents rebuilds that would cause focus loss and input stalling
+  }
+
+  /// Update field value and notify listeners (use for non-text fields like sliders, toggles)
+  void updateFieldValueWithNotify(String fieldKey, dynamic value) {
     _fieldErrors.remove(fieldKey);
     _currentStatus.setFieldValue(fieldKey, value);
     notifyListeners();
@@ -97,14 +108,11 @@ class AddEntryController extends ChangeNotifier {
 
     try {
       // Ensure all active fields have values (apply defaults for unset fields)
-      debugPrint('AddEntryController: Saving with ${_activeFields.length} active fields');
       for (final field in _activeFields) {
         final existingValue = _currentStatus.getFieldValue(field.id);
-        debugPrint('AddEntryController: Field ${field.labelKey} (${field.id}) = $existingValue');
         if (existingValue == null) {
           final defaultValue = _getDefaultValue(field);
           if (defaultValue != null) {
-            debugPrint('AddEntryController: Adding default value $defaultValue for ${field.labelKey}');
             _currentStatus.setFieldValue(field.id, defaultValue);
           }
         }
@@ -124,7 +132,7 @@ class AddEntryController extends ChangeNotifier {
       // Navigate back with success
       Modular.to.pop(true);
     } catch (e) {
-      debugPrint('Error saving status: $e');
+      if (kDebugMode) debugPrint('Error saving status: $e');
     } finally {
       _isSaving = false;
       notifyListeners();

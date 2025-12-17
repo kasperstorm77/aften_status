@@ -114,7 +114,8 @@ class _FieldManagementPageState extends State<FieldManagementPage> {
           maxWidth: ResponsiveLayout.getMaxWidth(context),
         ),
         child: ReorderableListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          // Extra bottom padding to prevent FAB from overlapping last items
+          padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 88),
           itemCount: _fields.length,
           onReorder: _reorderFields,
           itemBuilder: (context, index) {
@@ -414,7 +415,9 @@ class _FieldEditDialogState extends State<FieldEditDialog> {
                     labelText: 'Field Type',
                     border: OutlineInputBorder(),
                   ),
-                  items: FieldType.values.map((type) {
+                  items: FieldType.values
+                      .where((type) => type != FieldType.multipleChoice && type != FieldType.date)
+                      .map((type) {
                     return DropdownMenuItem(
                       value: type,
                       child: Row(

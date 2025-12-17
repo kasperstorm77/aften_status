@@ -149,6 +149,34 @@ class EveningStatusDriveService {
     await signOut();
   }
 
+  /// Get all backup file IDs for deletion (must be called BEFORE signing out)
+  Future<List<String>> getBackupFileIds() async {
+    final backups = await listAvailableBackups();
+    return backups
+        .map((b) => b['fileId'] as String?)
+        .where((id) => id != null)
+        .cast<String>()
+        .toList();
+  }
+
+  /// Delete backup files by their IDs in the background (fire and forget)
+  /// The file IDs must be collected BEFORE signing out
+  void deleteBackupsInBackground(List<String> fileIds) {
+    if (fileIds.isEmpty) return;
+    
+    // Run deletion in background without awaiting
+    Future.microtask(() async {
+      try {
+        for (final fileId in fileIds) {
+          await deleteBackupFile(fileId);
+        }
+        if (kDebugMode) print('EveningStatusDriveService: Background backup deletion completed (${fileIds.length} files)');
+      } catch (e) {
+        if (kDebugMode) print('EveningStatusDriveService: Background backup deletion failed: $e');
+      }
+    });
+  }
+
   /// Enable/disable sync
   Future<void> setSyncEnabled(bool enabled) async {
     if (PlatformHelper.isDesktop) {
@@ -185,14 +213,13 @@ class EveningStatusDriveService {
     _syncDebounceTimer = Timer(_syncDebounceDelay, () async {
       if (_syncPending) {
         _syncPending = false;
-        if (kDebugMode) print('EveningStatusDriveService: Debounced sync triggered');
         try {
           if (Hive.isBoxOpen('evening_status')) {
             final box = Hive.box<EveningStatus>('evening_status');
             await uploadFromBox(box);
           }
         } catch (e) {
-          if (kDebugMode) print('EveningStatusDriveService: Debounced sync failed: $e');
+          // Silently fail - sync will retry on next change
         }
       }
     });
@@ -219,7 +246,8 @@ class EveningStatusDriveService {
           fieldDefinitions = fieldBox.values.map((def) => {
             'id': def.id,
             'labelKey': def.labelKey,
-            'type': def.type.index,
+            'type': def.type.index, // Keep index for backward compatibility
+            'typeName': def.type.name, // Also store name for future-proofing
             'isActive': def.isActive,
             'isRequired': def.isRequired,
             'orderIndex': def.orderIndex,
@@ -301,10 +329,34 @@ class EveningStatusDriveService {
               options = Map<String, dynamic>.from(defData['options']);
             }
             
+            // Parse field type - handle index (int), name (string), and typeName formats
+            FieldType fieldType;
+            final typeName = defData['typeName']; // Preferred: string name
+            final typeValue = defData['type']; // Legacy: int index or string name
+            
+            if (typeName is String) {
+              // Use typeName if available (newest format)
+              fieldType = FieldType.values.firstWhere(
+                (e) => e.name == typeName,
+                orElse: () => FieldType.slider,
+              );
+            } else if (typeValue is int) {
+              // Fallback to index (older format)
+              fieldType = FieldType.values[typeValue];
+            } else if (typeValue is String) {
+              // Handle string type value
+              fieldType = FieldType.values.firstWhere(
+                (e) => e.name == typeValue,
+                orElse: () => FieldType.slider,
+              );
+            } else {
+              fieldType = FieldType.slider; // Default fallback
+            }
+            
             final def = FieldDefinition(
               id: defData['id'],
               labelKey: defData['labelKey'] ?? defData['name'] ?? '',
-              type: FieldType.values[defData['type'] ?? 0],
+              type: fieldType,
               isActive: defData['isActive'] ?? true,
               isRequired: defData['isRequired'] ?? false,
               orderIndex: defData['orderIndex'] ?? defData['sortOrder'] ?? 0,

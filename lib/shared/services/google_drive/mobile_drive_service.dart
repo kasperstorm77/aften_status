@@ -99,32 +99,20 @@ class MobileDriveService {
 
   /// Upload content to Drive
   Future<void> uploadContent(String content) async {
-    if (kDebugMode) print('MobileDriveService.uploadContent() called - syncEnabled=$_syncEnabled, _driveClient=${_driveClient != null ? "set" : "null"}');
-    
-    if (!_syncEnabled) {
-      if (kDebugMode) print('MobileDriveService.uploadContent() - skipped: sync not enabled');
-      return;
-    }
+    if (!_syncEnabled) return;
 
     if (_driveClient == null) {
-      if (kDebugMode) print('MobileDriveService.uploadContent() - _driveClient is null, trying _ensureAuthenticated');
       if (!await _ensureAuthenticated()) {
         _errorController.add('Upload failed - not authenticated');
-        if (kDebugMode) print('MobileDriveService.uploadContent() - _ensureAuthenticated failed');
         return;
       }
     }
 
     try {
-      if (kDebugMode) print('MobileDriveService.uploadContent() - creating dated backup');
-      // Create dated backup with timestamp
       await _createDatedBackup(content);
       _uploadController.add('Upload successful');
-      if (kDebugMode) print('MobileDriveService.uploadContent() - success!');
     } catch (e) {
-      final errorMsg = 'Upload failed: $e';
-      _errorController.add(errorMsg);
-      if (kDebugMode) print('MobileDriveService.uploadContent() - error: $e');
+      _errorController.add('Upload failed: $e');
       rethrow;
     }
   }
@@ -134,13 +122,7 @@ class MobileDriveService {
   /// Previous 7 days: keep only one backup per day (latest)
   Future<void> _createDatedBackup(String content) async {
     final now = DateTime.now();
-    if (kDebugMode) print('MobileDriveService._createDatedBackup() - timestamp: $now');
-    
-    // Create today's backup first (so it exists before cleanup)
-    final fileId = await _driveClient!.createDatedBackupFile(content, now);
-    if (kDebugMode) print('MobileDriveService._createDatedBackup() - created backup with fileId: $fileId');
-    
-    // Then clean up old backups
+    await _driveClient!.createDatedBackupFile(content, now);
     await _cleanupOldBackups();
   }
 
@@ -208,10 +190,9 @@ class MobileDriveService {
       final result = await _driveClient!.listFiles(query: query);
       if (result.isNotEmpty) {
         await _driveClient!.deleteFile(result.first.id!);
-        if (kDebugMode) print('Deleted backup: $fileName');
       }
     } catch (e) {
-      if (kDebugMode) print('Failed to delete backup $fileName: $e');
+      // Silently fail - cleanup is best effort
     }
   }
 
@@ -219,76 +200,61 @@ class MobileDriveService {
   Future<void> deleteFile(String fileId) async {
     if (_driveClient == null) {
       if (!await _ensureAuthenticated()) {
-        if (kDebugMode) print('MobileDriveService: Cannot delete file - not authenticated');
         return;
       }
     }
     
     try {
       await _driveClient!.deleteFile(fileId);
-      if (kDebugMode) print('MobileDriveService: Deleted file by ID: $fileId');
     } catch (e) {
-      if (kDebugMode) print('MobileDriveService: Failed to delete file by ID $fileId: $e');
+      if (kDebugMode) print('MobileDriveService: Failed to delete file: $e');
     }
   }
 
   /// List available backup files from Drive
   Future<List<Map<String, dynamic>>> listAvailableBackups() async {
-    if (kDebugMode) print('MobileDriveService.listAvailableBackups() called');
     if (_driveClient == null) {
-      if (kDebugMode) print('MobileDriveService: _driveClient is null, ensuring authenticated');
       if (!await _ensureAuthenticated()) {
-        if (kDebugMode) print('MobileDriveService: _ensureAuthenticated() failed');
         return [];
       }
-      if (kDebugMode) print('MobileDriveService: _ensureAuthenticated() succeeded');
     }
 
     try {
       // Find all backup files matching pattern
       final baseName = _authService.config.fileName.replaceAll('.json', '');
       final pattern = '${baseName}_*.json';
-      if (kDebugMode) print('MobileDriveService: searching for backup files with pattern: $pattern');
       final files = await _driveClient!.findBackupFiles(pattern);
-      if (kDebugMode) print('MobileDriveService: found ${files.length} backup files');
       
       final backups = <Map<String, dynamic>>[];
       for (final file in files) {
-        // Extract date and time from filename (e.g., twelve_steps_backup_2025-12-03_14-30-15.json)
+        // Extract date and time from filename
         final regex = RegExp(r'(\d{4})-(\d{2})-(\d{2})(?:_(\d{2})-(\d{2})-(\d{2}))?');
         final match = regex.firstMatch(file.name ?? '');
-        
-        if (kDebugMode) print('MobileDriveService: Processing file: ${file.name}');
         
         if (match != null) {
           final year = int.parse(match.group(1)!);
           final month = int.parse(match.group(2)!);
           final day = int.parse(match.group(3)!);
           
-          // Parse time if available (for newer backups with timestamps)
+          // Parse time if available
           int hour = 0, minute = 0, second = 0;
           if (match.group(4) != null) {
             hour = int.parse(match.group(4)!);
             minute = int.parse(match.group(5)!);
             second = int.parse(match.group(6)!);
-            if (kDebugMode) print('MobileDriveService: Parsed time: $hour:$minute:$second');
-          } else {
-            if (kDebugMode) print('MobileDriveService: No time found in filename');
           }
           
           final date = DateTime(year, month, day, hour, minute, second);
           final dateOnly = DateTime(year, month, day);
           
-          // Format display date with time for current day, date only for previous days
+          // Format display date
           final now = DateTime.now();
           final today = DateTime(now.year, now.month, now.day);
           
           String displayDate;
           if (dateOnly.isAtSameMomentAs(today)) {
-            // Show time for today's backups
             displayDate = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
           } else {
-            // Show only date for previous days
             displayDate = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
           }
           
@@ -302,7 +268,7 @@ class MobileDriveService {
         }
       }
       
-      // Sort by date descending (newest first)
+      // Sort by date descending
       backups.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
       
       return backups;

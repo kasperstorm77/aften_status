@@ -68,13 +68,21 @@ class _GraphPageState extends State<GraphPage> {
     super.dispose();
   }
 
+  /// Check if a field type can be graphed (has numeric values)
+  bool _isGraphableFieldType(FieldType type) {
+    return type == FieldType.slider || type == FieldType.number;
+  }
+
   Future<void> _loadData() async {
     try {
       await _storageService.init();
       await _fieldService.initialize();
       
       final entries = await _storageService.getAllEveningStatus();
-      final fields = await _fieldService.getActiveFields();
+      final allFields = await _fieldService.getActiveFields();
+      
+      // Filter to only graphable field types (slider, number)
+      final graphableFields = allFields.where((f) => _isGraphableFieldType(f.type)).toList();
       
       // Sort entries by timestamp (oldest first for chart)
       entries.sort((a, b) => a.timestamp.compareTo(b.timestamp));
@@ -84,15 +92,15 @@ class _GraphPageState extends State<GraphPage> {
           ? entries.sublist(entries.length - 20) 
           : entries;
       
-      // Initialize all fields as visible
+      // Initialize all graphable fields as visible
       final visibleFields = <String, bool>{};
-      for (final field in fields) {
+      for (final field in graphableFields) {
         visibleFields[field.id] = true;
       }
       
       setState(() {
         _entries = last20;
-        _fields = fields;
+        _fields = graphableFields;
         _visibleFields = visibleFields;
         _isLoading = false;
       });

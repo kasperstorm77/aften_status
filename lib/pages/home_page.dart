@@ -136,7 +136,7 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _EntryCard extends StatelessWidget {
+class _EntryCard extends StatefulWidget {
   final EveningStatus entry;
   final int index;
   final VoidCallback onTap;
@@ -154,27 +154,69 @@ class _EntryCard extends StatelessWidget {
   });
 
   @override
+  State<_EntryCard> createState() => _EntryCardState();
+}
+
+class _EntryCardState extends State<_EntryCard> {
+  double? _sliderAverage;
+  bool _isLoadingAverage = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _calculateSliderAverage();
+    });
+  }
+
+  Future<void> _calculateSliderAverage() async {
+    try {
+      final fieldService = Modular.get<FieldDefinitionService>();
+      final fieldValues = widget.entry.fieldValues;
+      
+      double sum = 0;
+      int count = 0;
+      
+      for (final entry in fieldValues.entries) {
+        final key = entry.key;
+        final value = entry.value;
+        
+        if (value is! num) continue;
+        
+        // Check if this field is a slider type
+        FieldDefinition? fieldDef = await fieldService.getFieldById(key);
+        fieldDef ??= await fieldService.getFieldByLabelKey(key);
+        
+        if (fieldDef != null && fieldDef.type == FieldType.slider) {
+          sum += value.toDouble();
+          count++;
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _sliderAverage = count > 0 ? sum / count : null;
+          _isLoadingAverage = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _sliderAverage = null;
+          _isLoadingAverage = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final locale = Localizations.localeOf(context).languageCode;
     final l10n = AppLocalizations.of(context)!;
-    
-    // Calculate average score from field values
-    final fieldValues = entry.fieldValues;
-    final numericEntries = fieldValues.entries
-        .where((e) => e.value is num)
-        .toList();
-    
-    double? averageScore;
-    if (numericEntries.isNotEmpty) {
-      final sum = numericEntries
-          .map((e) => (e.value as num).toDouble())
-          .reduce((a, b) => a + b);
-      averageScore = sum / numericEntries.length;
-    }
+    final fieldValues = widget.entry.fieldValues;
 
     return Dismissible(
-      key: Key(entry.timestamp.toIso8601String()),
+      key: Key(widget.entry.timestamp.toIso8601String()),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
@@ -189,7 +231,7 @@ class _EntryCard extends StatelessWidget {
         ),
       ),
       confirmDismiss: (direction) async {
-        onDelete();
+        widget.onDelete();
         return false; // Let the dialog handle the actual deletion
       },
       child: Card(
@@ -202,7 +244,7 @@ class _EntryCard extends StatelessWidget {
           ),
         ),
         child: InkWell(
-          onTap: onTap,
+          onTap: widget.onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -219,14 +261,14 @@ class _EntryCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            formatDate(entry.timestamp),
+                            widget.formatDate(widget.entry.timestamp),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            formatTime(entry.timestamp),
+                            widget.formatTime(widget.entry.timestamp),
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -234,21 +276,20 @@ class _EntryCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    // Average score badge
-                    if (averageScore != null)
+                    // Average score badge (slider fields only)
+                    if (!_isLoadingAverage && _sliderAverage != null)
                       _AverageScoreBadge(
-                        score: averageScore,
-                        label: l10n.averageScore(averageScore.toStringAsFixed(1)),
+                        score: _sliderAverage!,
+                        label: l10n.averageScore(_sliderAverage!.toStringAsFixed(1)),
                       ),
                   ],
                 ),
                 
-                // Score visualization
-                if (numericEntries.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  _ScoreBarChart(
-                    entries: numericEntries,
-                    locale: locale,
+                // Field values grouped by type
+                if (fieldValues.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _GroupedFieldsDisplay(
+                    fieldValues: fieldValues,
                   ),
                 ],
               ],
@@ -316,101 +357,83 @@ class _AverageScoreBadge extends StatelessWidget {
   }
 }
 
-/// A horizontal bar chart showing individual field scores
-class _ScoreBarChart extends StatefulWidget {
-  final List<MapEntry<String, dynamic>> entries;
-  final String locale;
+/// Widget that displays field values grouped by type
+class _GroupedFieldsDisplay extends StatefulWidget {
+  final Map<String, dynamic> fieldValues;
 
-  const _ScoreBarChart({
-    required this.entries,
-    required this.locale,
+  const _GroupedFieldsDisplay({
+    required this.fieldValues,
   });
 
   @override
-  State<_ScoreBarChart> createState() => _ScoreBarChartState();
+  State<_GroupedFieldsDisplay> createState() => _GroupedFieldsDisplayState();
 }
 
-class _ScoreBarChartState extends State<_ScoreBarChart> {
-  List<_FieldScoreData>? _fieldScores;
+class _GroupedFieldsDisplayState extends State<_GroupedFieldsDisplay> {
+  Map<FieldType, List<_FieldDisplayData>>? _groupedFields;
   bool _isLoading = true;
   bool _isExpanded = false;
-  static const int _collapsedCount = 2;
 
   @override
   void initState() {
     super.initState();
-    _loadFieldDefinitions();
+    // Defer loading until after the first frame when context is available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadFieldDefinitions();
+    });
   }
 
   @override
-  void didUpdateWidget(covariant _ScoreBarChart oldWidget) {
+  void didUpdateWidget(covariant _GroupedFieldsDisplay oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Reload if the entries or locale changed
-    if (widget.locale != oldWidget.locale ||
-        widget.entries.length != oldWidget.entries.length ||
-        !_entriesEqual(widget.entries, oldWidget.entries)) {
+    if (widget.fieldValues != oldWidget.fieldValues) {
       _loadFieldDefinitions();
     }
   }
 
-  bool _entriesEqual(List<MapEntry<String, dynamic>> a, List<MapEntry<String, dynamic>> b) {
-    if (a.length != b.length) return false;
-    for (int i = 0; i < a.length; i++) {
-      if (a[i].key != b[i].key || a[i].value != b[i].value) return false;
-    }
-    return true;
-  }
-
   Future<void> _loadFieldDefinitions() async {
+    if (!mounted) return;
+    
     try {
       final fieldService = Modular.get<FieldDefinitionService>();
+      final locale = Localizations.localeOf(context).languageCode;
       
-      final List<_FieldScoreData> scores = [];
+      final Map<FieldType, List<_FieldDisplayData>> grouped = {};
       
-      debugPrint('_ScoreBarChart: Processing ${widget.entries.length} entry values');
-      
-      for (final entry in widget.entries) {
+      for (final entry in widget.fieldValues.entries) {
         final key = entry.key;
+        final value = entry.value;
         
-        // Try to find field - could be stored by ID (UUID) or labelKey
-        FieldDefinition? fieldDef;
+        // Try to find field by ID or labelKey
+        FieldDefinition? fieldDef = await fieldService.getFieldById(key);
+        fieldDef ??= await fieldService.getFieldByLabelKey(key);
         
-        // First try by ID (newer entries use UUID as key)
-        fieldDef = await fieldService.getFieldById(key);
-        
-        // If not found, try by labelKey (older entries use labelKey as key)
-        if (fieldDef == null) {
-          fieldDef = await fieldService.getFieldByLabelKey(key);
-        }
-        
-        // Only include fields that still exist and are active
         if (fieldDef != null && fieldDef.isActive) {
-          scores.add(_FieldScoreData(
-            label: fieldDef.getDisplayLabel(widget.locale),
-            score: (entry.value as num).toDouble(),
+          final type = fieldDef.type;
+          grouped.putIfAbsent(type, () => []);
+          grouped[type]!.add(_FieldDisplayData(
+            label: fieldDef.getDisplayLabel(locale),
+            value: value,
             orderIndex: fieldDef.orderIndex,
           ));
-        } else {
-          debugPrint('_ScoreBarChart: Field not found or inactive for key: $key (fieldDef=${fieldDef != null}, active=${fieldDef?.isActive})');
         }
       }
       
-      // Sort by order index (as defined in field management)
-      scores.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
-      
-      debugPrint('_ScoreBarChart: Loaded ${scores.length} field scores');
+      // Sort each group by order index
+      for (final list in grouped.values) {
+        list.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+      }
       
       if (mounted) {
         setState(() {
-          _fieldScores = scores;
+          _groupedFields = grouped;
           _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('_ScoreBarChart: Error loading field definitions: $e');
       if (mounted) {
         setState(() {
-          _fieldScores = [];
+          _groupedFields = {};
           _isLoading = false;
         });
       }
@@ -423,41 +446,63 @@ class _ScoreBarChartState extends State<_ScoreBarChart> {
     final l10n = AppLocalizations.of(context)!;
     
     if (_isLoading) {
-      return const SizedBox(height: 40); // Placeholder height while loading
+      return const SizedBox(height: 40);
     }
     
-    if (_fieldScores == null || _fieldScores!.isEmpty) {
+    if (_groupedFields == null || _groupedFields!.isEmpty) {
       return const SizedBox.shrink();
     }
     
-    final hasMoreFields = _fieldScores!.length > _collapsedCount;
-    final displayScores = _isExpanded 
-        ? _fieldScores! 
-        : _fieldScores!.take(_collapsedCount).toList();
+    final sliders = _groupedFields![FieldType.slider] ?? [];
+    final numbers = _groupedFields![FieldType.number] ?? [];
+    final booleans = _groupedFields![FieldType.boolean] ?? [];
+    final texts = _groupedFields![FieldType.text] ?? [];
+    
+    // Count total fields for expand/collapse
+    final totalFields = sliders.length + numbers.length + booleans.length + texts.length;
+    final hasMany = totalFields > 3;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (int i = 0; i < displayScores.length; i++)
-          Padding(
-            padding: EdgeInsets.only(bottom: i < displayScores.length - 1 ? 6 : 0),
-            child: _ScoreBarItem(
-              label: displayScores[i].label,
-              score: displayScores[i].score,
-              maxScore: 10,
-            ),
+        // Sliders - show as bar charts (most important, always show first 2)
+        if (sliders.isNotEmpty)
+          _SliderFieldsSection(
+            fields: sliders,
+            isExpanded: _isExpanded,
+            collapsedCount: 2,
           ),
         
-        // Show expand/collapse toggle if there are more fields
-        if (hasMoreFields)
+        // Numbers - show as compact chips
+        if (numbers.isNotEmpty) ...[
+          if (sliders.isNotEmpty) const SizedBox(height: 8),
+          _NumberFieldsSection(
+            fields: numbers,
+            isExpanded: _isExpanded,
+          ),
+        ],
+        
+        // Booleans - show as icon row
+        if (booleans.isNotEmpty) ...[
+          if (sliders.isNotEmpty || numbers.isNotEmpty) const SizedBox(height: 8),
+          _BooleanFieldsSection(
+            fields: booleans,
+            isExpanded: _isExpanded,
+          ),
+        ],
+        
+        // Text fields - show as snippets (only when expanded)
+        if (texts.isNotEmpty && _isExpanded) ...[
+          const SizedBox(height: 8),
+          _TextFieldsSection(fields: texts),
+        ],
+        
+        // Expand/collapse toggle
+        if (hasMany || texts.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _isExpanded = !_isExpanded;
-                });
-              },
+              onTap: () => setState(() => _isExpanded = !_isExpanded),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -468,9 +513,7 @@ class _ScoreBarChartState extends State<_ScoreBarChart> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    _isExpanded 
-                        ? l10n.showLess
-                        : l10n.showMore(_fieldScores!.length - _collapsedCount),
+                    _isExpanded ? l10n.showLess : l10n.showMore(totalFields),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.primary,
                       fontWeight: FontWeight.w500,
@@ -485,17 +528,202 @@ class _ScoreBarChartState extends State<_ScoreBarChart> {
   }
 }
 
-/// Data class for field score display
-class _FieldScoreData {
+/// Data class for field display
+class _FieldDisplayData {
   final String label;
-  final double score;
+  final dynamic value;
   final int orderIndex;
 
-  _FieldScoreData({
+  _FieldDisplayData({
     required this.label,
-    required this.score,
+    required this.value,
     required this.orderIndex,
   });
+}
+
+/// Section for slider fields - displayed as bar charts
+class _SliderFieldsSection extends StatelessWidget {
+  final List<_FieldDisplayData> fields;
+  final bool isExpanded;
+  final int collapsedCount;
+
+  const _SliderFieldsSection({
+    required this.fields,
+    required this.isExpanded,
+    this.collapsedCount = 2,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final displayFields = isExpanded ? fields : fields.take(collapsedCount).toList();
+    
+    return Column(
+      children: [
+        for (int i = 0; i < displayFields.length; i++)
+          Padding(
+            padding: EdgeInsets.only(bottom: i < displayFields.length - 1 ? 6 : 0),
+            child: _ScoreBarItem(
+              label: displayFields[i].label,
+              score: (displayFields[i].value as num).toDouble(),
+              maxScore: 10,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Section for number fields - displayed as compact chips
+class _NumberFieldsSection extends StatelessWidget {
+  final List<_FieldDisplayData> fields;
+  final bool isExpanded;
+
+  const _NumberFieldsSection({
+    required this.fields,
+    required this.isExpanded,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final displayFields = isExpanded ? fields : fields.take(3).toList();
+    
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      children: displayFields.map((field) {
+        final value = field.value;
+        final displayValue = value is double && value == value.toInt()
+            ? value.toInt().toString()
+            : value.toString();
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                field.label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSecondaryContainer,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                displayValue,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSecondaryContainer,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+/// Section for boolean fields - displayed as icons
+class _BooleanFieldsSection extends StatelessWidget {
+  final List<_FieldDisplayData> fields;
+  final bool isExpanded;
+
+  const _BooleanFieldsSection({
+    required this.fields,
+    required this.isExpanded,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final displayFields = isExpanded ? fields : fields.take(4).toList();
+    
+    return Wrap(
+      spacing: 12,
+      runSpacing: 4,
+      children: displayFields.map((field) {
+        final isTrue = field.value == true;
+        
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isTrue ? Icons.check_circle : Icons.cancel,
+              size: 16,
+              color: isTrue ? Colors.green : Colors.red.withValues(alpha: 0.6),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              field.label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+}
+
+/// Section for text fields - displayed as snippets
+class _TextFieldsSection extends StatelessWidget {
+  final List<_FieldDisplayData> fields;
+
+  const _TextFieldsSection({required this.fields});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: fields.map((field) {
+        final text = field.value?.toString() ?? '';
+        if (text.isEmpty) return const SizedBox.shrink();
+        
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.notes,
+                size: 14,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      field.label,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                    Text(
+                      text.length > 50 ? '${text.substring(0, 50)}...' : text,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
 }
 
 /// Individual score bar with label and visual indicator

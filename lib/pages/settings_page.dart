@@ -524,9 +524,15 @@ class _SettingsPageState extends State<SettingsPage> {
         return;
       }
 
+      // Get field definitions for export
+      final fieldService = Modular.get<FieldDefinitionService>();
+      final fields = await fieldService.getAllFields();
+      final fieldDefinitions = fields.map((def) => def.toMap()).toList();
+
       final data = {
         'exportDate': DateTime.now().toIso8601String(),
         'appVersion': '1.0.0',
+        'fieldDefinitions': fieldDefinitions,
         'entries': entries.map((e) => e.toMap()).toList(),
       };
 
@@ -744,16 +750,24 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _disconnectAndDeleteBackups() async {
     final l10n = AppLocalizations.of(context)!;
+    
     setState(() => _isLoading = true);
     try {
-      await _driveService.disconnectAndDeleteAllBackups();
+      // Get backup file IDs BEFORE signing out (required for deletion)
+      final fileIds = await _driveService.getBackupFileIds();
+      
+      // Sign out immediately for instant UI feedback
+      await _driveService.signOut();
       _availableBackups.clear();
       _selectedBackup = null;
-      _showMessage(l10n.disconnectSuccess);
-    } catch (e) {
-      _showError(l10n.disconnectFailed(e.toString()));
-    } finally {
       setState(() => _isLoading = false);
+      _showMessage(l10n.disconnectSuccess);
+      
+      // Delete backups in the background (don't await)
+      _driveService.deleteBackupsInBackground(fileIds);
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showError(l10n.disconnectFailed(e.toString()));
     }
   }
 

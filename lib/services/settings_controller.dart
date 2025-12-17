@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import '../models/app_settings.dart';
@@ -22,7 +23,7 @@ class SettingsController extends ChangeNotifier {
       await _settingsService.init();
       _appSettings = _settingsService.loadSettings();
     } catch (e) {
-      debugPrint('Error initializing SettingsController: $e');
+      if (kDebugMode) debugPrint('Error initializing SettingsController: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -65,9 +66,8 @@ class SettingsController extends ChangeNotifier {
 
     try {
       await _settingsService.saveSettings(_appSettings);
-      debugPrint('Settings saved successfully');
     } catch (e) {
-      debugPrint('Error saving settings: $e');
+      if (kDebugMode) debugPrint('Error saving settings: $e');
     } finally {
       _isSaving = false;
       notifyListeners();

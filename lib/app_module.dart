@@ -1,5 +1,4 @@
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:flutter/foundation.dart';
 
 // Services
 import 'services/storage_service.dart';
@@ -25,33 +24,14 @@ class AppModule extends Module {
   
   @override
   void binds(i) {
-    debugPrint('DEBUG: Binding services...');
+    // Core services as lazy singletons - they initialize on first use
+    i.addLazySingleton<LocaleProvider>(() => _localeProvider);
     
-    // Core services as singletons
-    i.addSingleton<LocaleProvider>(() {
-      debugPrint('DEBUG: Creating LocaleProvider...');
-      // Initialize asynchronously - will load saved locale
-      _localeProvider.initialize();
-      return _localeProvider;
-    });
+    i.addLazySingleton<StorageService>(StorageService.new);
     
-    i.addSingleton<StorageService>(() {
-      debugPrint('DEBUG: Creating StorageService...');
-      final storageService = StorageService();
-      storageService.init();
-      return storageService;
-    });
+    i.addLazySingleton<FieldDefinitionService>(FieldDefinitionService.new);
     
-    i.addSingleton<FieldDefinitionService>(() {
-      debugPrint('DEBUG: Creating FieldDefinitionService...');
-      final service = FieldDefinitionService();
-      return service;
-    });
-    
-    i.addSingleton<SettingsService>(() {
-      debugPrint('DEBUG: Creating SettingsService...');
-      return SettingsService();
-    });
+    i.addLazySingleton<SettingsService>(SettingsService.new);
     
     // Controllers (lazy singletons)
     i.addLazySingleton<HomeController>(HomeController.new);
@@ -59,7 +39,7 @@ class AppModule extends Module {
     i.addLazySingleton<SettingsController>(SettingsController.new);
     
     // Drive sync service (singleton instance)
-    i.addSingleton<EveningStatusDriveService>(() => EveningStatusDriveService.instance);
+    i.addLazySingleton<EveningStatusDriveService>(() => EveningStatusDriveService.instance);
   }
 
   @override
